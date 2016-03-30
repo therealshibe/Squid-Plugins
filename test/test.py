@@ -1,2 +1,2 @@
 def setup(bot):
-    await bot.say('WOO')
+    print("Setted up.")
