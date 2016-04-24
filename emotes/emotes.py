@@ -138,7 +138,7 @@ class Emotes:
                 })
         self.save_available_emotes()
 
-    @commands.command(pass_context=True)
+    @commands.command(no_pm=True, pass_context=True)
     async def emote(self, ctx, emote_name: str):
         """Enabled emote and all emotes from same twitch channel"""
         server = ctx.message.server
@@ -148,7 +148,7 @@ class Emotes:
         server_emotes = self.available_emotes[server.id]
         if emote_name in server_emotes:
             await self.bot.say(
-                            "This server already has '{}'".format(emote_name))
+                "This server already has '{}'".format(emote_name))
             return
         await self.bot.say("Retrieving emotes from '{}'.".format(emote_name) +
                            " Please wait a moment.")
