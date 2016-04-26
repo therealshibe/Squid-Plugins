@@ -67,6 +67,15 @@ class BotInfo:
         else:
             await self.bot.say("Sorry, my owner is offline, try again later?")
 
+    @commands.command()
+    async def support(self):
+        """If you'd like to support continued bot and cog development, I'd
+        greatly appreciate that.
+        """
+        await self.bot.say("If you'd like to support continued bot and cog "
+                           "development, I'd greatly appreciate that.\n\n"
+                           "Patreon: https://www.patreon.com/tekulvw")
+
     @commands.group(pass_context=True, no_pm=True)
     async def welcome(self, ctx):
         if not ctx.invoked_subcommand:
