@@ -81,11 +81,22 @@ class BotInfo:
         await self.bot.say("I'm Squid, a general, multi-purpose bot that is"
                            " always getting new features. You can access my"
                            " new support server here"
-                           " (https://discord.gg/0tQfjen1qq42xAvz). All of my"
+                           " (http://discord.me/Squid). All of my"
                            " help documentation can be found by using `~help`"
                            " so feel free to mess around with commands to"
                            " find what you like! If you'd like to support"
                            " continued development, check out `~support`")
+
+    @commands.command()
+    async def invite(self):
+        """Invite me to a new server"""
+        await self.bot.say("You must have manage server permissions in order"
+                           " to add me to a new server. If you do, just click"
+                           " the link below and select the server you wish for"
+                           " me to join.\n\n"
+                           "https://discordapp.com/oauth2/authorize?&"
+                           "client_id=168417388663013376&scope=bot&"
+                           "permissions=36826127")
 
     @commands.group(pass_context=True, no_pm=True)
     async def welcome(self, ctx):
