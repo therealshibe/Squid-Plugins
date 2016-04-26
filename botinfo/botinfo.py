@@ -69,12 +69,23 @@ class BotInfo:
 
     @commands.command()
     async def support(self):
-        """If you'd like to support continued bot and cog development, I'd
-        greatly appreciate that.
+        """Support continued bot and cog development.
         """
         await self.bot.say("If you'd like to support continued bot and cog "
                            "development, I'd greatly appreciate that.\n\n"
                            "Patreon: https://www.patreon.com/tekulvw")
+
+    @commands.command()
+    async def info(self):
+        """General bot information"""
+        await self.bot.say("I'm Squid, a general, multi-purpose bot that is"
+                           " always getting new features. You can access my"
+                           " new support server here"
+                           " (https://discord.gg/0tQfjen1qq42xAvz). All of my"
+                           " help documentation can be found by using `~help`"
+                           " so feel free to mess around with commands to"
+                           " find what you like! If you'd like to support"
+                           " continued development, check out `~support`")
 
     @commands.group(pass_context=True, no_pm=True)
     async def welcome(self, ctx):
