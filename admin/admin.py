@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from cogs.utils import checks
 from __main__ import settings
+from copy import deepcopy
 
 
 class Admin:
@@ -58,6 +59,16 @@ class Admin:
         if len(str(evald)) > 2000:
             evald = str(evald)[:1990] + " you fuck."
         await self.bot.say(evald)
+
+    @commands.command(pass_context=True)
+    @checks.is_owner()
+    async def sudo(self, ctx, user: discord.Member, *, command):
+        """Runs the [command] as if [user] had run it. DON'T ADD A PREFIX
+        """
+        new_msg = deepcopy(ctx.message)
+        new_msg.author = user
+        new_msg.content = self.bot.command_prefix[0] + command
+        await self.bot.process_commands(new_msg)
 
 
 def setup(bot):
