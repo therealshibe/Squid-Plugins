@@ -71,7 +71,7 @@ class HubLinker:
                 log.debug('master {} enabled'.format(sid))
                 await self.bot.say('Master link enabled.')
                 for slave in self.links[sid]['SLAVES']:
-                    discord.utils.create_task(self.initial_linker(sid, slave))
+                    discord.compat.create_task(self.initial_linker(sid, slave))
             self.save_links()
         else:
             await self.bot.say('This server is not a master.')
@@ -147,7 +147,7 @@ class HubLinker:
                 to_add.append(self._matching_role(slave, mrole))
             log.debug('adding roles to {0.name} on {1.id}:\n\t{2}'.format(
                 slave_member, slave, [r.name for r in to_add]))
-            discord.utils.create_task(
+            discord.compat.create_task(
                 self.bot.add_roles(slave_member, *to_add))
 
     async def _delete_all_roles(self, server):
@@ -279,7 +279,7 @@ class HubLinker:
                     continue
                 log.debug('deleting {} to {} on {}'.format(r.name, member.name,
                                                            member.server.id))
-                discord.utils.create_task(self.bot.remove_roles(member, r))
+                discord.compat.create_task(self.bot.remove_roles(member, r))
 
     async def _status_role_compare(self, master, before, after):
         if before.status != discord.Status.online and after.status == \
@@ -296,7 +296,7 @@ class HubLinker:
             for role in after.roles:
                 slave_role = self._matching_role(slave, role)
                 if slave_role and slave_role not in slave_member.roles:
-                    discord.utils.create_task(self.bot.add_roles(
+                    discord.compat.create_task(self.bot.add_roles(
                         slave_member, slave_role))
 
     async def role_create(self, server, role):
@@ -312,7 +312,7 @@ class HubLinker:
             if slave_server is None:
                 continue
             role_dict = self._explode_role(role)
-            discord.utils.create_task(self.bot.create_role(slave_server,
+            discord.compat.create_task(self.bot.create_role(slave_server,
                                                            **role_dict))
 
     async def role_delete(self, server, role):
@@ -326,7 +326,7 @@ class HubLinker:
             s = self._server_from_id(s)
             if s is None or r is None:
                 continue
-            discord.utils.create_task(self.bot.delete_role(s, r))
+            discord.compat.create_task(self.bot.delete_role(s, r))
 
     async def role_edit(self, before, after):
         server = self._get_server_from_role(before)
@@ -344,7 +344,7 @@ class HubLinker:
             s = self._server_from_id(s)
             if s is None or r is None:
                 continue
-            discord.utils.create_task(
+            discord.compat.create_task(
                     self.bot.edit_role(s, r, **self._explode_role(after)))
 
     async def member_join(self, member):
