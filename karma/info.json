@@ -1,0 +1,6 @@
+{
+    "AUTHOR" : "Will/tekulvw",
+    "DESCRIPTION" : "Award people with karma points using ++ or --.\n\nExample: @\u200BWill ++",
+    "DISABLED" : false,
+    "NAME" : "Award people with Karma points."
+}
