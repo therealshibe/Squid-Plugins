@@ -194,7 +194,7 @@ class RSS(object):
 
     async def read_feeds(self):
         await self.bot.wait_until_ready()
-        while self == self.bot.get_cogs('RSS'):
+        while self == self.bot.get_cog('RSS'):
             feeds = self.feeds.get_copy()
             for server in feeds:
                 for chan_id in feeds[server]:
