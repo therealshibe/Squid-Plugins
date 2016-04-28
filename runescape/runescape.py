@@ -1,8 +1,7 @@
-import discord
 from discord.ext import commands
 import aiohttp
-from cogs.utils.dataIO import fileIO
 from cogs.utils.chat_formatting import *
+import fractions
 
 try:
     import feedparser
@@ -148,6 +147,37 @@ class Runescape:
             await self.bot.say("No user found.")
         else:
             await self.bot.say(self._fmt_hs(text))
+
+    @commands.command()
+    async def dropcalc(self, drop_rate, threshold, kill_count):
+        """Calculates your chances of (not) getting a drop."""
+        try:
+            drop_rate = float(fractions.Fraction(drop_rate))
+            threshold = int(threshold)
+            kill_count = int(kill_count)
+        except:
+            await self.bot.say("All arguments must be numbers.")
+            return
+        if drop_rate > 1:
+            drop_rate = 1 / drop_rate
+
+        if drop_rate < 0 or threshold < 0 or kill_count < 0:
+            await self.bot.say("All values must be above 0.")
+            return
+
+        if kill_count < threshold:
+            chance_to_notget = (1 - drop_rate)**(kill_count)
+        else:
+            chance_to_notget = 1
+            threshold_crosses = kill_count // threshold
+            for i in range(0, threshold_crosses):
+                mult = 1 + i
+                chance_to_notget *= (1 - drop_rate * mult)**(mult * threshold)
+
+        chance_to_get = 1 - chance_to_notget
+        msg = ("Your chance of getting that drop in {}".format(kill_count) +
+               " kills is {:.3f}%".format(chance_to_get * 100))
+        await self.bot.say(msg)
 
 
 def setup(bot):
