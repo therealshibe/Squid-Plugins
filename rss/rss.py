@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-import feedparser
 import os
 import aiohttp
 import asyncio
@@ -9,6 +8,11 @@ import string
 from cogs.utils.dataIO import fileIO
 from cogs.utils.chat_formatting import *
 from __main__ import send_cmd_help
+
+try:
+    import feedparser
+except:
+    feedparser = None
 
 
 class Settings(object):
@@ -223,6 +227,8 @@ class RSS(object):
 
 
 def setup(bot):
+    if feedparser is None:
+        raise NameError("You need to run `pip3 install feedparser`")
     n = RSS(bot)
     bot.add_cog(n)
     bot.loop.create_task(n.read_feeds())

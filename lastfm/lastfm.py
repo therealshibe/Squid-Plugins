@@ -1,7 +1,5 @@
-import discord
 from discord.ext import commands
 
-import pylast
 import os
 import asyncio
 import time
@@ -9,10 +7,16 @@ import time
 from cogs.utils.dataIO import fileIO
 from __main__ import send_cmd_help
 
+try:
+    import pylast
+except:
+    pylast = None
+
+
 class Scrobbler(object):
-    def __init__(self,bot):
+    def __init__(self, bot):
         self.bot = bot
-        self.settings = fileIO('data/lastfm/settings.json','load')
+        self.settings = fileIO('data/lastfm/settings.json', 'load')
         self.valid_settings = self.check_settings()
         if not self.valid_settings:
             raise RuntimeError("You need to set your lastfm settings.")
@@ -25,24 +29,25 @@ class Scrobbler(object):
         api_secret = self.settings.get('APISECRET')
         username = self.settings.get('USERNAME')
         password = pylast.md5(self.settings.get('PASSWORD'))
-        net = pylast.LastFMNetwork(api_key=api_key,api_secret=api_secret,
-                                   username=username,password_hash=password)
+        net = pylast.LastFMNetwork(api_key=api_key, api_secret=api_secret,
+                                   username=username, password_hash=password)
         return net
 
     def check_settings(self):
-        for k,v in self.settings.items():
+        for k, v in self.settings.items():
             if v == '':
-                print("Error: You need to set your {} in data/lastfm/settings.json".format(k))
+                print(
+                    "Error: You need to set your {} in data/lastfm/settings.json".format(k))
                 return False
         return True
 
     @commands.group(pass_context=True)
-    async def lastfmset(self,ctx):
+    async def lastfmset(self, ctx):
         if ctx.invoked_subcommand is None:
             await send_cmd_help(ctx)
 
-    @lastfmset.command(pass_context=True,name="enable")
-    async def _lastfmset_enabled(self,ctx):
+    @lastfmset.command(pass_context=True, name="enable")
+    async def _lastfmset_enabled(self, ctx):
         if 'ENABLED' not in self.settings:
             self.settings['ENABLED'] = True
             await self.bot.say('Scrobbler enabled.')
@@ -50,7 +55,7 @@ class Scrobbler(object):
             curr = self.setting['ENABLED']
             self.setting['ENABLED'] = (not curr)
             await self.bot.say('Scrobbler enabled? {}'.format((not curr)))
-        fileIO('data/lastfm/settings.json','save',self.settings)
+        fileIO('data/lastfm/settings.json', 'save', self.settings)
 
     async def audio_watcher(self):
         await self.bot.wait_until_ready()
@@ -62,7 +67,7 @@ class Scrobbler(object):
                             and self.audio.music_player.is_playing():
                         self.last_title = self.audio.downloader["TITLE"]
                         title = self.last_title
-                        artist="Wish I knew"
+                        artist = "Wish I knew"
                         timestamp = int(time.time())
                         try:
                             splitted = self.last_title.split(' - ')
@@ -78,20 +83,25 @@ class Scrobbler(object):
                 print('Audio not loaded!')
                 await asyncio.sleep(15)
 
+
 def check_folders():
     if not os.path.exists('data/lastfm'):
         print('Creating data/lastfm folder.')
         os.mkdir('data/lastfm')
 
+
 def check_files():
-    s = {'APIKEY':'','APISECRET':'','USERNAME':'','PASSWORD':''}
+    s = {'APIKEY': '', 'APISECRET': '', 'USERNAME': '', 'PASSWORD': ''}
 
     f = "data/lastfm/settings.json"
     if not fileIO(f, "check"):
         print("Creating default lastfm's settings.json...")
         fileIO(f, "save", s)
 
+
 def setup(bot):
+    if pylast is None:
+        raise NameError("You need to run `pip3 install pylast`")
     check_folders()
     check_files()
     n = Scrobbler(bot)

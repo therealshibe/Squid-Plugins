@@ -4,8 +4,12 @@ import aiohttp
 from cogs.utils import checks
 from cogs.utils.dataIO import fileIO
 import os
-import requests
 from __main__ import send_cmd_help
+
+try:
+    import requests
+except:
+    requests = None
 
 
 class Emotes:
@@ -214,6 +218,8 @@ def check_files():
 
 
 def setup(bot):
+    if requests is None:
+        raise NameError("You need to run `pip3 install requests`")
     check_folders()
     check_files()
     n = Emotes(bot)
