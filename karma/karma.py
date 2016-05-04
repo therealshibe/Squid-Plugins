@@ -1,7 +1,5 @@
-import discord
 from discord.ext import commands
 from cogs.utils.dataIO import fileIO
-from cogs.utils import checks
 from __main__ import send_cmd_help
 import os
 
@@ -47,7 +45,7 @@ class Karma:
 
     @commands.command(pass_context=True)
     async def karma(self, ctx):
-        """Checks a user's karma, requires @ mention 
+        """Checks a user's karma, requires @ mention
 
            Example: !karma @Red"""
         if len(ctx.message.mentions) != 1:
@@ -56,7 +54,8 @@ class Karma:
         member = ctx.message.mentions[0]
         if self.scores.get(member.id, 0) != 0:
             member_dict = self.scores[member.id]
-            await self.bot.say(member.name + " has " + str(member_dict["score"]) + " points!")
+            await self.bot.say(member.name + " has " +
+                               str(member_dict["score"]) + " points!")
             reasons = self._fmt_reasons(member_dict.get("reasons", []))
             if reasons:
                 await self.bot.send_message(ctx.message.author, reasons)
@@ -84,7 +83,9 @@ class Karma:
             if member.id in first_word.lower():
                 if "++" in first_word.lower() or "--" in first_word.lower():
                     if member == user:
-                        await self.bot.send_message(message.channel, "You can't modify your own rep, jackass.")
+                        await self.bot.send_message(message.channel,
+                                                    "You can't modify your own"
+                                                    " rep, jackass.")
                         return
                 if "++" in first_word.lower():
                     self._process_scores(member.id, 1)
@@ -97,7 +98,9 @@ class Karma:
 
         if "++" == first_word or "--" == first_word:
             if "@" not in first_word:
-                await self.bot.send_message(message.channel, "You need to use an @ mention for karma tracking.")
+                await self.bot.send_message(message.channel,
+                                            "You need to use an @ mention for"
+                                            " karma tracking.")
 
 
 def check_folder():
