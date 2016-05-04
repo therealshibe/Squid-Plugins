@@ -165,11 +165,13 @@ class Runescape:
             await self.bot.say("All values must be above 0.")
             return
 
-        if kill_count < threshold:
+        if threshold == 0 or kill_count < threshold:
             chance_to_notget = (1 - drop_rate)**(kill_count)
         else:
             chance_to_notget = 1
             threshold_crosses = kill_count // threshold
+            threshold_crosses = threshold_crosses if threshold_crosses <= 9 \
+                else 9
             for i in range(0, threshold_crosses):
                 mult = 1 + i
                 chance_to_notget *= (1 - drop_rate * mult)**(mult * threshold)
