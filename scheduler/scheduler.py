@@ -27,6 +27,13 @@ class Event:
         self.repeat = data.pop('repeat')
         self.starttime = data.pop('starttime', None)
 
+    def __lt__(self, other):
+        my_sig = "{}-{}-{}-{}".format(self.timedelta, self.name,
+                                      self.starttime, self.channel)
+        other_sig = "{}-{}-{}-{}".format(other.timedelta, other.name,
+                                         other.starttime, other.channel)
+        return hash(my_sig) < hash(other_sig)
+
 
 class Scheduler:
     """Schedules commands to run every so often.
