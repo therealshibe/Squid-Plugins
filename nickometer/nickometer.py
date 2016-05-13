@@ -51,7 +51,10 @@ class Nickometer:
     async def nickometer(self, ctx, nick=None):
         """Tells you how lame a person with this name is, 100% accurate."""
         if not nick:
-            nick = ctx.message.author.name
+            try:
+                nick = ctx.message.author.nick
+            except:
+                nick = ctx.message.author.name
         elif is_mention(nick):
             members = ctx.message.server.members
             user = discord.utils.get(members, id=getid(nick))
