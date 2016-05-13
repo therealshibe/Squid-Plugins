@@ -55,11 +55,20 @@ class Nickometer:
                 nick = ctx.message.author.nick
             except:
                 nick = ctx.message.author.name
+            else:
+                if nick is None:
+                    nick = ctx.message.author.name
         elif is_mention(nick):
             members = ctx.message.server.members
             user = discord.utils.get(members, id=getid(nick))
             if user:
-                nick = user.name
+                try:
+                    nick = ctx.message.author.nick
+                except:
+                    nick = user.name
+                else:
+                    if nick is None:
+                        nick = ctx.message.author.name
         originalNick = nick
 
         score = 0
