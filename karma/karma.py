@@ -1,15 +1,19 @@
 from discord.ext import commands
 from cogs.utils.dataIO import fileIO
+from cogs.utils import checks
 from __main__ import send_cmd_help
 import os
 
 
 class Karma:
-    """Keep track of user scores through @mention++/--"""
+    """Keep track of user scores through @mention ++/--
+
+    Example: ++ @\u200BWill (or @\u200BWill ++)"""
 
     def __init__(self, bot):
         self.bot = bot
         self.scores = fileIO("data/karma/scores.json", "load")
+        self.settings = fileIO("data/karma/settings.json", 'load')
 
     def _process_scores(self, member_id, score_to_add):
         if member_id in self.scores:
@@ -62,6 +66,25 @@ class Karma:
         else:
             await self.bot.say(member.name + " has no karma!")
 
+    @commands.group(pass_context=True)
+    @checks.mod_or_permissions(manage_messages=True)
+    async def karmaset(self, ctx):
+        """Manage karma settings"""
+        if ctx.invoked_subcommand is None:
+            await send_cmd_help(ctx)
+            return
+
+    @karmaset.command(pass_context=True, name="respond")
+    async def _karmaset_respond(self, ctx):
+        """Toggles if bot will respond when points get added/removed"""
+        if self.settings['RESPOND_ON_POINT']:
+            await self.bot.say("Responses disabled.")
+        else:
+            await self.bot.say('Responses enabled.')
+        self.settings['RESPOND_ON_POINT'] = \
+            not self.settings['RESPOND_ON_POINT']
+        fileIO('data/karma/settings.json', 'save')
+
     async def check_for_score(self, message):
         user = message.author
         content = message.content
@@ -96,12 +119,6 @@ class Karma:
                 fileIO("data/karma/scores.json", "save", self.scores)
                 return
 
-        if "++" == first_word or "--" == first_word:
-            if "@" not in first_word:
-                await self.bot.send_message(message.channel,
-                                            "You need to use an @ mention for"
-                                            " karma tracking.")
-
 
 def check_folder():
     if not os.path.exists("data/karma"):
@@ -111,11 +128,17 @@ def check_folder():
 
 def check_file():
     scores = {}
+    settings = {"RESPOND_ON_POINT": True}
 
     f = "data/karma/scores.json"
     if not fileIO(f, "check"):
         print("Creating default karma's scores.json...")
         fileIO(f, "save", scores)
+
+    f = "data/karma/settings.json"
+    if not fileIO(f, "check"):
+        print("Creating default karma's scores.json...")
+        fileIO(f, "save", settings)
 
 
 def setup(bot):
