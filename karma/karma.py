@@ -83,7 +83,7 @@ class Karma:
             await self.bot.say('Responses enabled.')
         self.settings['RESPOND_ON_POINT'] = \
             not self.settings['RESPOND_ON_POINT']
-        fileIO('data/karma/settings.json', 'save')
+        fileIO('data/karma/settings.json', 'save', self.settings)
 
     async def check_for_score(self, message):
         user = message.author
