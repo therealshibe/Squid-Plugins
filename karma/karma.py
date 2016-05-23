@@ -123,7 +123,7 @@ class Karma:
                 if self.settings['RESPOND_ON_POINT']:
                     msg = "{} now has {} points.".format(
                         member.name, self.scores[member.id])
-                    await self.bot.send_message(member.channel, msg)
+                    await self.bot.send_message(message.channel, msg)
                 fileIO("data/karma/scores.json", "save", self.scores)
                 return
 
