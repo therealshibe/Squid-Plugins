@@ -15,7 +15,8 @@ class Karma:
         self.scores = fileIO("data/karma/scores.json", "load")
         self.settings = fileIO("data/karma/settings.json", 'load')
 
-    def _process_scores(self, member_id, score_to_add):
+    def _process_scores(self, member, score_to_add):
+        member_id = member.id
         if member_id in self.scores:
             if "score" in self.scores.get(member_id, {}):
                 self.scores[member_id]["score"] += score_to_add
@@ -111,11 +112,18 @@ class Karma:
                                                     " rep, jackass.")
                         return
                 if "++" in first_word.lower():
-                    self._process_scores(member.id, 1)
+                    self._process_scores(member, 1)
                     self._add_reason(member.id, reason)
                 elif "--" in first_word.lower():
-                    self._process_scores(member.id, -1)
+                    self._process_scores(member, -1)
                     self._add_reason(member.id, reason)
+                else:
+                    return
+
+                if self.settings['RESPOND_ON_POINT']:
+                    msg = "{} now has {} points.".format(
+                        member.name, self.scores[member.id])
+                    await self.bot.send_message(member.channel, msg)
                 fileIO("data/karma/scores.json", "save", self.scores)
                 return
 
