@@ -58,7 +58,11 @@ class Admin:
             evald = text
         if len(str(evald)) > 2000:
             evald = str(evald)[:1990] + " you fuck."
-        await self.bot.say(evald)
+        user = ctx.message.author
+        if user.bot == True
+            return
+        else:
+            await self.bot.say(evald)
 
     @commands.command(pass_context=True)
     @checks.is_owner()
