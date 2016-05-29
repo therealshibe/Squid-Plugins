@@ -36,8 +36,8 @@ class Scrobbler(object):
     def check_settings(self):
         for k, v in self.settings.items():
             if v == '':
-                print(
-                    "Error: You need to set your {} in data/lastfm/settings.json".format(k))
+                print("Error: You need to set your {} in ".format(k) +
+                      "data/lastfm/settings.json")
                 return False
         return True
 

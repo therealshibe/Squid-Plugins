@@ -313,7 +313,7 @@ class HubLinker:
                 continue
             role_dict = self._explode_role(role)
             discord.compat.create_task(self.bot.create_role(slave_server,
-                                                           **role_dict))
+                                                            **role_dict))
 
     async def role_delete(self, server, role):
         if not self._exists_and_enabled(server.id):
@@ -345,7 +345,7 @@ class HubLinker:
             if s is None or r is None:
                 continue
             discord.compat.create_task(
-                    self.bot.edit_role(s, r, **self._explode_role(after)))
+                self.bot.edit_role(s, r, **self._explode_role(after)))
 
     async def member_join(self, member):
         slave = member.server

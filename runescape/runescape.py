@@ -14,8 +14,11 @@ class Runescape:
 
     def __init__(self, bot):
         self.bot = bot
-        self.base_url = "http://services.runescape.com/m=hiscore/index_lite.ws?player="
-        self.alog_url = "http://services.runescape.com/m=adventurers-log/rssfeed?searchName="
+        self.base_url = \
+            "http://services.runescape.com/m=hiscore/index_lite.ws?player="
+        self.alog_url = \
+            ("http://services.runescape.com/m=adventurers-log/rssfeed?"
+             "searchName=")
         self.max_level = 120
         self.skill_list = [
             "Overall",
@@ -49,8 +52,9 @@ class Runescape:
         ]
         self.elite_skills = [27, ]
         self.skill_levels = self._skill_levels()
-        self.elite_levels = [0.4796 * pow(x, 4) - 12.788 * pow(x, 3) + 228.56 * pow(x, 2)
-                             + 2790.8 * x - 31674 for x in range(1, 150)]
+        self.elite_levels = [0.4796 * pow(x, 4) - 12.788 * pow(x, 3) + 228.56 *
+                             pow(x, 2) + 2790.8 * x - 31674
+                             for x in range(1, 150)]
 
     def _skill_levels(self):
         xplist = []

@@ -1,4 +1,3 @@
-import discord
 from discord.ext import commands
 from cogs.utils.dataIO import fileIO
 from cogs.utils import checks
@@ -91,11 +90,14 @@ class Tickets:
 
            Example: !ticket The quick brown fox? -> adds ticket"""
         if self.ticket_limit != 0 and \
-                self._get_number_tickets(ctx.message.author) >= self.ticket_limit:
-            await self.bot.say("{}, you've reached the ticket limit!".format(ctx.message.author.mention))
+                self._get_number_tickets(ctx.message.author) >= \
+                self.ticket_limit:
+            await self.bot.say("{}, you've reached the ticket limit!".format(
+                ctx.message.author.mention))
             return
         self._add_ticket(ctx.message.author, message)
-        await self.bot.say("{}, ticket added.".format(ctx.message.author.mention))
+        await self.bot.say("{}, ticket added.".format(
+            ctx.message.author.mention))
 
     @commands.command(aliases=['ct'])
     @checks.mod_or_permissions(manage_messages=True)
@@ -118,7 +120,8 @@ class Tickets:
         else:
             self.tickets = self.tickets[num:]
         fileIO("data/tickets/tickets.json", "save", self.tickets)
-        await self.bot.say("{} tickets deleted.\n{} tickets remaining.".format(num, len(self.tickets)))
+        await self.bot.say("{} tickets deleted.\n{} tickets remaining.".format(
+            num, len(self.tickets)))
 
     @commands.group(pass_context=True)
     @checks.admin_or_permissions(manage_server=True)
@@ -144,13 +147,15 @@ class Tickets:
 
     @ticketset.command(name="keep", pass_context=True)
     async def _keep_on_read(self, ctx, val: bool):
-        """Determines whether the ticket is kept after it has been read. - True/False"""
+        """Determines whether the ticket is kept after it has been read.
+         - True/False"""
         self.keep_on_read = val
         await self.bot.say("Keep on read set to {}".format(val))
 
     @ticketset.command(name="pm")
     async def reply_to(self, boolvar: bool):
-        """Determines whether !nextticket replies in a pm or not - True/False"""
+        """Determines whether !nextticket replies in a pm or not
+         - True/False"""
         if boolvar:
             self.reply_to_user = True
         else:
