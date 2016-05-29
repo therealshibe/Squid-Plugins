@@ -1,7 +1,5 @@
-import discord
 from discord.ext import commands
 from cogs.utils.dataIO import fileIO
-from cogs.utils import checks
 from __main__ import send_cmd_help
 import os
 from random import choice as randchoice
@@ -45,7 +43,8 @@ class Quotes:
             quotes = []
             for i in range(len(self.quotes)):
                 if num - 1 == i:
-                    await self.bot.say("Quote number " + str(num) + " has been deleted.")
+                    await self.bot.say("Quote number " + str(num) +
+                                       " has been deleted.")
                 else:
                     quotes.append(self.quotes[i])
             self.quotes = quotes
