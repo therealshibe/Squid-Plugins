@@ -65,16 +65,20 @@ class Admin:
 
         Can use `message`, `channel`, `server`, and `discord`
         """
-        try:
-            evald = eval(text, {}, {'message': ctx.message,
-                                    'channel': ctx.message.channel,
-                                    'server': ctx.message.server,
-                                    'discord': discord})
-        except:
-            evald = text
-        if len(str(evald)) > 2000:
-            evald = str(evald)[:1990] + " you fuck."
-        await self.bot.say(evald)
+        user = ctx.message.author
+        if user.bot == True
+            return
+        else:
+            try:
+                evald = eval(text, {}, {'message': ctx.message,
+                                        'channel': ctx.message.channel,
+                                        'server': ctx.message.server,
+                                        'discord': discord})
+            except:
+                evald = text
+            if len(str(evald)) > 2000:
+                evald = str(evald)[:1990] + " you fuck."
+            await self.bot.say(evald)
 
     @commands.command(pass_context=True)
     @checks.is_owner()
