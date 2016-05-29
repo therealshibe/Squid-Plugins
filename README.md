@@ -1,5 +1,5 @@
+[![Code Climate](https://codeclimate.com/github/tekulvw/Squid-Plugins/badges/gpa.svg)](https://codeclimate.com/github/tekulvw/Squid-Plugins)
 # HELLO 
-----
 Squid repo here, use these plugins at your discretion.
 ----
 I'll get to the docs *eventually*
