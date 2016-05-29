@@ -133,6 +133,8 @@ class MentionTracker:
             return
         mentions = message.mentions
         for mention in mentions:
+            if not message.channel.permissions_for(mention).read_messages:
+                return
             if mention != message.author and mention.id in self.mail \
                     and mention.status != Status.online:
                 limit = self.settings.get("MENTION_TIME_LIMIT", 0)
