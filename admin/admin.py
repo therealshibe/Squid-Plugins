@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from cogs.utils import checks
 from __main__ import settings
+from copy import deepcopy
 import asyncio
 import logging
 
