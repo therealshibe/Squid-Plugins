@@ -65,6 +65,9 @@ class Admin:
 
         Can use `message`, `channel`, `server`, and `discord`
         """
+        user = ctx.message.author
+        if hasattr(user, 'bot') and user.bot is True:
+            return
         try:
             evald = eval(text, {}, {'message': ctx.message,
                                     'channel': ctx.message.channel,
