@@ -16,7 +16,7 @@ class ChannelLogger(object):
 
     @commands.command(pass_context=True, no_pm=True)
     @checks.is_owner()
-    async def logger(self, ctx):
+    async def channellogger(self, ctx):
         """Toggles logging for a channel"""
         channel = ctx.message.channel
         if channel.id not in self.channels:
