@@ -127,6 +127,8 @@ class Admin:
     async def announcer(self, msg):
         server_ids = map(lambda s: s.id, self.bot.servers)
         for server_id in server_ids:
+            if self != self.bot.get_cog('Admin'):
+                break
             server = self.bot.get_server(server_id)
             if server is None:
                 continue
