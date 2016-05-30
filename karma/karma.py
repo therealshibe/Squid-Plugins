@@ -1,8 +1,18 @@
+import discord
 from discord.ext import commands
 from cogs.utils.dataIO import fileIO
+from cogs.utils.chat_formatting import box
 from cogs.utils import checks
 from __main__ import send_cmd_help
+import logging
 import os
+try:
+    import tabulate
+except:
+    tabulate = None
+
+
+log = logging.getLogger("red.karma")
 
 
 class Karma:
@@ -66,6 +76,27 @@ class Karma:
                 await self.bot.send_message(ctx.message.author, reasons)
         else:
             await self.bot.say(member.name + " has no karma!")
+
+    @commands.command(pass_context=True)
+    async def karmaboard(self, ctx):
+        """Karma leaderboard"""
+        server = ctx.message.server
+        member_ids = map(lambda m: m.id, server.members)
+        karma_server_members = list(filter(lambda m: m in member_ids,
+                                           self.scores.keys()))
+        log.debug("Karma server members:\n\t{}".format(
+            karma_server_members))
+        names = list(map(lambda mid: discord.utils.get(server.members, id=mid),
+                         karma_server_members))
+        log.debug("Names:\n\t{}".format(names))
+        scores = list(map(lambda mid: self.scores[mid]["score"],
+                          karma_server_members))
+        log.debug("Scores:\n\t{}".format(scores))
+        headers = ["User", "Karma"]
+        body = sorted(zip(names, scores), key=lambda tup: tup[1],
+                      reverse=True)[:10]
+        table = tabulate.tabulate(body, headers, tablefmt="psql")
+        await self.bot.say(box(table))
 
     @commands.group(pass_context=True)
     @checks.mod_or_permissions(manage_messages=True)
@@ -150,6 +181,8 @@ def check_file():
 
 
 def setup(bot):
+    if tabulate is None:
+        raise RuntimeError("Run `pip install tabulate` to use Karma.")
     check_folder()
     check_file()
     n = Karma(bot)
