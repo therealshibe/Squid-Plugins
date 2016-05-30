@@ -134,11 +134,13 @@ class RSS(object):
 
     @commands.group(pass_context=True)
     async def rss(self, ctx):
+        """RSS feed stuff"""
         if ctx.invoked_subcommand is None:
             await send_cmd_help(ctx)
 
     @rss.command(pass_context=True, name="add")
     async def _rss_add(self, ctx, name: str, url: str):
+        """Add an RSS feed to the current channel"""
         valid_url = await self.valid_url(url)
         if valid_url:
             self.feeds.add_feed(ctx, name, url)
@@ -149,12 +151,20 @@ class RSS(object):
 
     @rss.command(pass_context=True, name="list")
     async def _rss_list(self, ctx):
+        """List currently running feeds"""
         msg = "Available Feeds:\n\t"
         msg += "\n\t".join(self.feeds.get_feed_names(ctx.message.server))
         await self.bot.say(box(msg))
 
     @rss.command(pass_context=True, name="template")
     async def _rss_template(self, ctx, feed_name: str, *, template: str):
+        ("""Set a template for the feed alert
+
+        Each variable must start with $, valid variables:
+        \tauthor, author_detail, comments, content, contributors, created,"""
+         """create, links, name, published, published_parsed, publisher,"""
+         """ publisher_detail, source, summary, summary_detail, tags, title,"""
+         """ title_detail, updated, updated_parsed""")
         template = template.replace("\\t", "\t")
         template = template.replace("\\n", "\n")
         success = await self.feeds.edit_template(ctx, feed_name, template)
@@ -165,6 +175,7 @@ class RSS(object):
 
     @rss.command(pass_context=True, name="force")
     async def _rss_force(self, ctx, feed_name: str):
+        """Forces a feed alert"""
         server = ctx.message.server
         channel = ctx.message.channel
         feeds = self.feeds.get_copy()
@@ -190,6 +201,7 @@ class RSS(object):
 
     @rss.command(pass_context=True, name="remove")
     async def _rss_remove(self, ctx, name: str):
+        """Removes a feed from this server"""
         success = await self.feeds.delete_feed(ctx, name)
         if success:
             await self.bot.say('Feed deleted.')
