@@ -81,9 +81,9 @@ class Karma:
     async def karmaboard(self, ctx):
         """Karma leaderboard"""
         server = ctx.message.server
-        member_ids = map(lambda m: m.id, server.members)
-        karma_server_members = list(filter(lambda m: m in member_ids,
-                                           self.scores.keys()))
+        member_ids = [m.id for m in server.members]
+        karma_server_members = [key for key in self.scores.keys()
+                                if key in member_ids]
         log.debug("Karma server members:\n\t{}".format(
             karma_server_members))
         names = list(map(lambda mid: discord.utils.get(server.members, id=mid),
