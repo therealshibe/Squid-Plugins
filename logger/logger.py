@@ -3,6 +3,8 @@ from discord.ext import commands
 from cogs.utils import checks
 from cogs.utils.chat_formatting import box
 from __main__ import send_cmd_help
+from cogs.utils.dataIO import dataIO
+import os
 
 try:
     import tabulate
@@ -26,6 +28,7 @@ class Logger:
             "error",
             "notset"
         ]
+        self._saved_levels = dataIO.load_json('data/logger/saved_levels.json')
 
     def _get_levels(self, loggers):
         ret = []
@@ -78,6 +81,24 @@ class Logger:
         if level_str.lower() in self.levels:
             return getattr(logging, level_str.upper())
 
+    async def _reset_saved_loggers(self):
+        all_loggers = self._get_loggers()
+        for logname, info in self._saved_levels.items():
+            level = info.get("override")
+            if logname in all_loggers:
+                curr_log = logging.getLogger(logname)
+                curr_log.setLevel(level)
+
+    def _save_levels(self):
+        dataIO.save_json('data/logger/saved_levels.json', self._saved_levels)
+
+    def _set_level(self, name, level):
+        curr_log = logging.getLogger(name)
+        default = curr_log.getEffectiveLevel()
+        curr_log.setLevel(level)
+        self._saved_levels[name] = {"override": level, "default": default}
+        self._save_levels()
+
     @commands.group(pass_context=True)
     @checks.is_owner()
     async def logger(self, ctx):
@@ -95,6 +116,26 @@ class Logger:
         msg = tabulate.tabulate(ret, headers, tablefmt="psql")
         await self.bot.say(box(msg))
 
+    @logger.command(pass_context=True, name="reset")
+    async def logger_reset(self, ctx, name):
+        """Resets a log to it's default level"""
+        if name not in self._get_loggers():
+            await self.bot.say("Invalid logger.")
+            return
+        elif name not in self._get_red_loggers():
+            await self.bot.say("Not a Red logger.")
+            return
+        elif name not in self._saved_levels:
+            await self.bot.say("Haven't overridden this logger.")
+            return
+
+        curr_log = logging.getLogger(name)
+        curr_log.setLevel(self._saved_levels[name].get("default"))
+        del self._saved_levels[name]
+        self._save_levels()
+
+        await self.bot.say("Level reset.")
+
     @logger.command(pass_context=True, name="setlevel")
     async def logger_setlevel(self, ctx, name, level):
         """Sets level for a logger"""
@@ -110,14 +151,24 @@ class Logger:
         except:
             await self.bot.say("Bad level.")
         else:
-            logger = logging.getLogger(name)
-            logger.setLevel(level)
+            self._set_level(name, level)
             await self.bot.say("{} set to logging.{}".format(
                 name, self._int_to_name(level).upper()))
+
+
+def check_files():
+    if not os.path.exists('data/logger/saved_levels.json'):
+        try:
+            os.mkdir('data/logger')
+        except FileExistsError:
+            pass
+        dataIO.save_json('data/logger/saved_levels.json', {})
 
 
 def setup(bot):
     if tabulate is None:
         raise RuntimeError("Must run `pip install tabulate` to use Logger.")
+    check_files()
     n = Logger(bot)
     bot.add_cog(n)
+    bot.add_listener(n._reset_saved_loggers, 'on_ready')
