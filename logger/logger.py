@@ -116,6 +116,12 @@ class Logger:
         msg = tabulate.tabulate(ret, headers, tablefmt="psql")
         await self.bot.say(box(msg))
 
+    @logger.command(name="reload")
+    async def logger_reload(self):
+        """Reloads saved levels, just in case"""
+        self._reset_saved_loggers()
+        await self.bot.say("All levels reloaded.")
+
     @logger.command(pass_context=True, name="reset")
     async def logger_reset(self, ctx, name):
         """Resets a log to it's default level"""
