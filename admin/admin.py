@@ -17,16 +17,30 @@ class Admin:
         self.bot = bot
         self._announce_msg = None
 
+    def _role_from_string(self, server, rolename):
+        role = discord.utils.find(lambda r: r.name.lower() == rolename.lower(),
+                                  server.roles)
+        try:
+            log.debug("Role {} found from rolename {}".format(
+                role.name, rolename))
+        except:
+            log.debug("Role not found for rolename {}".format(rolename))
+        return role
+
     @commands.command(no_pm=True, pass_context=True)
     @checks.admin_or_permissions(manage_roles=True)
     async def addrole(self, ctx, rolename, user: discord.Member=None):
+        """Adds a role to a user, defaults to author
+
+        Role name must be in quotes if there are spaces."""
         author = ctx.message.author
         channel = ctx.message.channel
         server = ctx.message.server
-        role = discord.utils.find(lambda r: r.name.lower() == rolename.lower(),
-                                  ctx.message.server.roles)
+
         if user is None:
             user = author
+
+        role = self._role_from_string(server, rolename)
 
         if role is None:
             await self.bot.say('That role cannot be found.')
@@ -57,7 +71,28 @@ class Admin:
     @commands.command(no_pm=True, pass_context=True)
     @checks.admin_or_permissions(manage_roles=True)
     async def removerole(self, ctx, rolename, user: discord.Member=None):
-        pass
+        """Removes a role from user, defaults to author
+
+        Role name must be in quotes if there are spaces."""
+        server = ctx.message.server
+        author = ctx.message.author
+
+        role = self._role_from_string(server, rolename)
+        if role is None:
+            await self.bot.say("Role not found.")
+            return
+
+        if user is None:
+            user = author
+
+        if role in user.roles:
+            try:
+                await self.bot.remove_roles(user, role)
+                await self.bot.say("Role successfully removed.")
+            except discord.Forbidden:
+                await self.bot.say("I don't have permissions to manage roles!")
+        else:
+            await self.bot.say("User does not have that role.")
 
     @commands.command(no_pm=True, pass_context=True)
     async def say(self, ctx, *, text):
@@ -76,7 +111,7 @@ class Admin:
         except:
             evald = text
         if len(str(evald)) > 2000:
-            evald = str(evald)[:1990] + " you fuck."
+            evald = str(evald)[-1990:] + " you fuck."
         await self.bot.say(evald)
 
     @commands.command(pass_context=True)
