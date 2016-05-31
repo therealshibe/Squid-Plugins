@@ -150,6 +150,30 @@ class Admin:
                 self._announce_msg = None
             await asyncio.sleep(1)
 
+    @commands.command(pass_context=True)
+    @checks.is_owner()
+    async def partycrash(self, ctx):
+        """Lists servers and generates invites for them"""
+        owner = ctx.message.author
+        servers = list(self.bot.servers)
+        server_list = {}
+        msg = ""
+        for i in range(0, len(servers)):
+            server_list[str(i)] = servers[i]
+            msg += "{}: {}\n".format(str(i), servers[i].name)
+        msg += "\nTo post an invite for a server just type its number."
+        await self.bot.say(msg)
+        while msg != None:
+            msg = await self.bot.wait_for_message(author=owner, timeout=15)
+            if msg != None:
+                msg = msg.content.strip()
+                if msg in server_list.keys():
+                    invite=self.bot.create_invite(server_list[msg])
+                    await self.bot.say(invite)
+                else:
+                    break
+            else:
+                break
 
 def setup(bot):
     n = Admin(bot)
