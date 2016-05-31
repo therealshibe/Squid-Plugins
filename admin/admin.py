@@ -168,12 +168,28 @@ class Admin:
             if msg != None:
                 msg = msg.content.strip()
                 if msg in server_list.keys():
-                    invite=self.bot.create_invite(server_list[msg])
-                    await self.bot.say(invite)
+                    await self.confirm_invite(server_list[msg], owner, ctx)
                 else:
                     break
             else:
                 break
+
+    async def confirm_invite(self, server, owner, ctx):
+        answers = ("yes", "y")
+        invite = await self.bot.create_invite(server)
+        if ctx.message.channel.is_private:
+            await self.bot.say(invite)
+        else:
+            await self.bot.say("Are you sure you want to post an invite to {} "
+                "here? (yes/no)".format(server.name))
+            msg = await self.bot.wait_for_message(author=owner, timeout=15)
+            if msg is None:
+                await self.bot.say("I guess not.")
+            elif msg.content.lower().strip() in answers:
+                await self.bot.say(invite)
+            else:
+                await self.bot.say("Alright then.")
+
 
 def setup(bot):
     n = Admin(bot)
