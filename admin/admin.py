@@ -152,27 +152,29 @@ class Admin:
 
     @commands.command(pass_context=True)
     @checks.is_owner()
-    async def partycrash(self, ctx):
+    async def partycrash(self, ctx, idnum=None):
         """Lists servers and generates invites for them"""
         owner = ctx.message.author
-        servers = list(self.bot.servers)
-        server_list = {}
-        msg = ""
-        for i in range(0, len(servers)):
-            server_list[str(i)] = servers[i]
-            msg += "{}: {}\n".format(str(i), servers[i].name)
-        msg += "\nTo post an invite for a server just type its number."
-        await self.bot.say(msg)
-        while msg != None:
+        if idnum:
+            server = discord.utils.get(self.bot.servers, id=idnum)
+            if server:
+                await self.confirm_invite(server, owner, ctx)
+            else:
+                await self.bot.say("I'm not in that server")
+        else:
+            servers = list(self.bot.servers)
+            server_list = {}
+            msg = ""
+            for i in range(0, len(servers)):
+                server_list[str(i)] = servers[i]
+                msg += "{}: {}\n".format(str(i), servers[i].name)
+            msg += "\nTo post an invite for a server just type its number."
+            await self.bot.say(msg)
             msg = await self.bot.wait_for_message(author=owner, timeout=15)
             if msg != None:
                 msg = msg.content.strip()
                 if msg in server_list.keys():
                     await self.confirm_invite(server_list[msg], owner, ctx)
-                else:
-                    break
-            else:
-                break
 
     async def confirm_invite(self, server, owner, ctx):
         answers = ("yes", "y")
