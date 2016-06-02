@@ -1,8 +1,10 @@
+import discord
 from discord.ext import commands
 from cogs.utils import checks
 from cogs.utils.dataIO import dataIO
 import logging
 import os
+import sys
 from __main__ import send_cmd_help
 
 try:
@@ -23,7 +25,7 @@ class Stats:
     def _configured(self):
         if self._is_initialized:
             return True
-        return self._initialize
+        return self._initialize()
 
     def _initialize(self):
         if "APIKEY" not in self.settings or "APPKEY" not in self.settings:
@@ -53,6 +55,12 @@ class Stats:
         self.settings["APPKEY"] = key
         self._save_settings()
 
+    def _tag_generator(self, *args, **kwargs):
+        ret = [str(a) for a in args]
+        for key, val in kwargs.items():
+            ret.append("{}:{}".format(str(key), str(val)))
+        return ret
+
     @commands.group(pass_context=True)
     async def stats(self, ctx):
         """Bot stat tracker for Datadog"""
@@ -79,10 +87,20 @@ class Stats:
         await self.bot.say("APP key successfully set.")
 
     async def error(self, event, *args, **kwargs):
-        self._increment("red.error")
+        print("errord")
+        exc_type, value, tb = sys.exc_info()
+        extra = {}
+        if exc_type is discord.errors.HTTPException:
+            extra["httpstatus"] = value.response.status
+            extra["message"] = value.message
+        tags = self._tag_generator(event=event, type=exc_type, **extra)
+        self._increment("red.error", tags=tags)
 
     async def message(self, message):
-        self._increment("red.message")
+        tags = self._tag_generator(serverid=message.server.id,
+                                   channelid=message.channel.id,
+                                   authorid=message.author.id)
+        self._increment("red.message", tags=tags)
 
     async def socket_raw_receive(self, msg):
         self._increment("red.socket.raw.receive")
@@ -91,10 +109,16 @@ class Stats:
         self._increment("red.socket.raw.send")
 
     async def message_delete(self, message):
-        self._increment("red.message.delete")
+        tags = self._tag_generator(serverid=message.server.id,
+                                   channelid=message.channel.id,
+                                   authorid=message.author.id)
+        self._increment("red.message.delete", tags=tags)
 
     async def message_edit(self, before, after):
-        self._increment("red.message.edit")
+        tags = self._tag_generator(serverid=after.server.id,
+                                   channelid=after.channel.id,
+                                   authorid=after.author.id)
+        self._increment("red.message.edit", tags=tags)
 
     async def channel_delete(self, channel):
         self._increment("red.channel.delete")
@@ -106,19 +130,34 @@ class Stats:
         self._increment("red.channel.update")
 
     async def member_join(self, member):
-        self._increment("red.member.join")
+        tags = self._tag_generator(serverid=member.server.id,
+                                   authorid=member.id)
+        self._increment("red.member.join", tags=tags)
 
     async def member_remove(self, member):
-        self._increment("red.member.remove")
+        tags = self._tag_generator(serverid=member.server.id,
+                                   authorid=member.id)
+        self._increment("red.member.remove", tags=tags)
 
     async def member_update(self, before, after):
-        self._increment("red.member.update")
+        extra = {}
+        if before.status != after.status:
+            if after.status == discord.Status.online:
+                extra["status"] = "online"
+            elif after.status == discord.Status.idle:
+                extra["status"] = "idle"
+            else:
+                extra["status"] = "offline"
+        tags = self._tag_generator(**extra)
+        self._increment("red.member.update", tags=tags)
 
     async def server_join(self, server):
-        self._increment("red.server.join")
+        tags = self._tag_generator(serverid=server.id)
+        self._increment("red.server.join", tags=tags)
 
     async def server_remove(self, server):
-        self._increment("red.server.remove")
+        tags = self._tag_generator(serverid=server.id)
+        self._increment("red.server.remove", tags=tags)
 
     async def server_update(self, before, after):
         self._increment("red.server.update")
@@ -136,22 +175,39 @@ class Stats:
         self._increment("red.voice.state.update")
 
     async def member_ban(self, member):
-        self._increment("red.member.ban")
+        tags = self._tag_generator(serverid=member.server.id,
+                                   authorid=member.id)
+        self._increment("red.member.ban", tags=tags)
 
     async def member_unban(self, server, user):
-        self._increment("red.member.unban")
+        tags = self._tag_generator(serverid=server.id,
+                                   authorid=user.id)
+        self._increment("red.member.unban", tags=tags)
 
     async def typing(self, channel, user, when):
         self._increment("red.typing")
 
     async def command(self, command, ctx):
-        self._increment("red.command")
+        tags = self._tag_generator(command=command.name,
+                                   invoked_subcommand=ctx.invoked_subcommand,
+                                   serverid=ctx.message.server.id,
+                                   authorid=ctx.message.author.id)
+        self._increment("red.command", tags=tags)
 
     async def command_error(self, error, ctx):
-        self._increment("red.command.error")
+        exc_type, value, tb = sys.exc_info()
+        tags = self._tag_generator(type=exc_type,
+                                   serverid=ctx.message.server.id,
+                                   authorid=ctx.message.author.id,
+                                   command=ctx.invoked_with)
+        self._increment("red.command.error", tags=tags)
 
     async def command_completion(self, command, ctx):
-        self._increment("red.command.completion")
+        tags = self._tag_generator(command=command.name,
+                                   invoked_subcommand=ctx.invoked_subcommand,
+                                   serverid=ctx.message.server.id,
+                                   authorid=ctx.message.author.id)
+        self._increment("red.command.completion", tags=tags)
 
 
 def check_files():
