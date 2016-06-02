@@ -5,6 +5,7 @@ from cogs.utils.dataIO import dataIO
 import logging
 import os
 import sys
+import asyncio
 from __main__ import send_cmd_help
 
 try:
@@ -85,6 +86,11 @@ class Stats:
         """Sets datadog APP key"""
         self._set_app_key(key)
         await self.bot.say("APP key successfully set.")
+
+    async def alive(self):
+        while self == self.bot.get_cog('Stats'):
+            statsd.service_check("red.alive", datadog.DogStatsd.OK)
+            await asyncio.sleep(5)
 
     async def error(self, event, *args, **kwargs):
         print("errord")
@@ -250,3 +256,4 @@ def setup(bot):
     bot.add_listener(n.command, 'on_command')
     bot.add_listener(n.command_error, 'on_command_error')
     bot.add_listener(n.command_completion, 'on_command_completion')
+    bot.loop.ensure_future(n.alive())
