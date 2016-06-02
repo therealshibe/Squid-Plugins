@@ -1,10 +1,12 @@
 import discord
 from discord.ext import commands
 from cogs.utils import checks
-from __main__ import settings
+from cogs.utils.dataIO import dataIO
+from __main__ import settings, send_cmd_help
 from copy import deepcopy
 import asyncio
 import logging
+import os
 
 
 log = logging.getLogger("red.admin")
@@ -16,16 +18,34 @@ class Admin:
     def __init__(self, bot):
         self.bot = bot
         self._announce_msg = None
+        self._settings = dataIO.load_json('data/admin/settings.json')
+        self._settable_roles = self._settings.get("ROLES", {})
 
-    def _role_from_string(self, server, rolename):
+    def _get_selfrole_names(self, server):
+        if server.id not in self._settable_roles:
+            return None
+        else:
+            return self._settable_roles[server.id]
+
+    def _role_from_string(self, server, rolename, roles=None):
+        if roles is None:
+            roles = server.roles
         role = discord.utils.find(lambda r: r.name.lower() == rolename.lower(),
-                                  server.roles)
+                                  roles)
         try:
             log.debug("Role {} found from rolename {}".format(
                 role.name, rolename))
         except:
             log.debug("Role not found for rolename {}".format(rolename))
         return role
+
+    def _save_settings(self):
+        dataIO.save_json('data/admin/settings.json', self._settings)
+
+    def _set_selfroles(self, server, rolelist):
+        self._settable_roles[server.id] = rolelist
+        self._settings["ROLES"] = self._settable_roles
+        self._save_settings()
 
     @commands.command(no_pm=True, pass_context=True)
     @checks.admin_or_permissions(manage_roles=True)
@@ -57,6 +77,32 @@ class Admin:
 
         await self.bot.add_roles(user, role)
         await self.bot.say('Added role {} to {}'.format(role.name, user.name))
+
+    @commands.group(pass_context=True, no_pm=True)
+    async def adminset(self, ctx):
+        """Manage Admin settings"""
+        if ctx.invoked_subcommand is None:
+            await send_cmd_help(ctx)
+
+    @adminset.command(pass_context=True, name="selfroles")
+    @checks.admin_or_permissions(manage_roles=True)
+    async def adminset_selfroles(self, ctx, *, rolelist):
+        """Set which roles users can set themselves.
+
+        COMMA SEPARATED LIST (e.g. Admin,Staff,Mod)"""
+        server = ctx.message.server
+        unparsed_roles = list(map(lambda r: r.strip(), rolelist.split(',')))
+        parsed_roles = list(map(lambda r: self._role_from_string(server, r),
+                                unparsed_roles))
+        if len(unparsed_roles) != len(parsed_roles):
+            not_found = set(unparsed_roles) - {r.name for r in parsed_roles}
+            await self.bot.say(
+                "These roles were not found: {}\n\nPlease"
+                " try again.".format(not_found))
+        parsed_role_set = list({r.name for r in parsed_roles})
+        self._set_selfroles(server, parsed_role_set)
+        await self.bot.say(
+            "Self roles successfully set to: {}".format(parsed_role_set))
 
     @commands.command(pass_context=True)
     @checks.is_owner()
@@ -93,6 +139,39 @@ class Admin:
                 await self.bot.say("I don't have permissions to manage roles!")
         else:
             await self.bot.say("User does not have that role.")
+
+    @commands.command(no_pm=True, pass_context=True)
+    async def selfrole(self, ctx, *, rolename):
+        """Allows users to set their own role.
+
+        Configurable using `adminset`"""
+        server = ctx.message.server
+        author = ctx.message.author
+        role_names = self._get_selfrole_names(server)
+        if role_names is None:
+            await self.bot.say("I have no user settable roles for this"
+                               " server.")
+            return
+
+        roles = list(map(lambda r: self._role_from_string(server, r),
+                         role_names))
+
+        role_to_add = self._role_from_string(server, rolename, roles=roles)
+
+        try:
+            await self.bot.add_roles(author, role_to_add)
+        except discord.errors.Forbidden:
+            log.debug("{} just tried to add a role but I was forbidden".format(
+                author.name))
+            await self.bot.say("I don't have permissions to do that.")
+        except AttributeError:  # role_to_add is NoneType
+            log.debug("{} not found as settable on {}".format(rolename,
+                                                              server.id))
+            await self.bot.say("That role isn't user settable.")
+        else:
+            log.debug("Role {} added to {} on {}".format(rolename, author.name,
+                                                         server.id))
+            await self.bot.say("Role added.")
 
     @commands.command(no_pm=True, pass_context=True)
     async def say(self, ctx, *, text):
@@ -151,7 +230,18 @@ class Admin:
             await asyncio.sleep(1)
 
 
+def check_files():
+    if not os.path.exists('data/admin/settings.json'):
+        try:
+            os.mkdir('data/admin')
+        except FileExistsError:
+            pass
+        else:
+            dataIO.save_json('data/admin/settings.json', {})
+
+
 def setup(bot):
+    check_files()
     n = Admin(bot)
     bot.add_cog(n)
     bot.loop.create_task(n.announce_manager())
