@@ -43,7 +43,7 @@ class BotInfo:
         return ret
 
     @commands.command()
-    async def servers(self):
+    async def servercount(self):
         '''General global server information'''
         servers = sorted([server.name for server in self.bot.servers])
         ret = "I am currently in "
