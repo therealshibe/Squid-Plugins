@@ -90,7 +90,7 @@ class Stats:
     async def alive(self):
         while self == self.bot.get_cog('Stats'):
             statsd.service_check("red.alive", datadog.DogStatsd.OK)
-            await asyncio.sleep(5)
+            await asyncio.sleep(300)
 
     async def error(self, event, *args, **kwargs):
         print("errord")
