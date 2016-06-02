@@ -256,4 +256,4 @@ def setup(bot):
     bot.add_listener(n.command, 'on_command')
     bot.add_listener(n.command_error, 'on_command_error')
     bot.add_listener(n.command_completion, 'on_command_completion')
-    bot.loop.ensure_future(n.alive())
+    bot.loop.create_task(n.alive())
