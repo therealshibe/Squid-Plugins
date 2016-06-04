@@ -49,7 +49,8 @@ class Logger:
         loggers = self._get_loggers()
         ret = []
         for logger in loggers:
-            if logger.lower().startswith("red"):
+            if logger.lower().startswith("red") or \
+                    logger.lower().startswith("cogs"):
                 ret.append(logger)
         ret = sorted(ret)
         log.debug("Logger list:\n\t{}".format(ret))
