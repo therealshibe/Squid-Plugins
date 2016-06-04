@@ -44,9 +44,11 @@ class Emotes:
             self.settings[server.id]["LIMIT_PER_MESSAGE"] = int(value)
             self.save_settings()
 
-    def update_emote_list(self):
+    async def update_emote_list(self):
         resp = requests.get(self.emote_url)
-        data = resp.json().get("emoticons", {})
+        async with self.bot.session.get(self.emote_url) as r:
+            resp = await r.json()
+        data = resp.get("emoticons", {})
         self.emote_list = data
 
     def _is_enabled(self, server):
@@ -131,7 +133,7 @@ class Emotes:
                         print(e)
                         print(dir(e))
                         print("------")
-                        return
+                        continue
                     self._write_image(chan_id, file_name, image)
                 if server.id not in self.available_emotes:
                     self.available_emotes[server.id] = {}
@@ -223,6 +225,6 @@ def setup(bot):
     check_folders()
     check_files()
     n = Emotes(bot)
-    n.update_emote_list()
+    bot.loop.create_task(n.update_emote_list())
     bot.add_listener(n.check_messages, "on_message")
     bot.add_cog(n)
