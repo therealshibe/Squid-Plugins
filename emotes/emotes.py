@@ -6,11 +6,6 @@ from cogs.utils.dataIO import fileIO
 import os
 from __main__ import send_cmd_help
 
-try:
-    import requests
-except:
-    requests = None
-
 
 class Emotes:
     """Twitch Emotes commands."""
@@ -45,7 +40,6 @@ class Emotes:
             self.save_settings()
 
     async def update_emote_list(self):
-        resp = requests.get(self.emote_url)
         async with self.bot.session.get(self.emote_url) as r:
             resp = await r.json()
         data = resp.get("emoticons", {})
@@ -220,8 +214,6 @@ def check_files():
 
 
 def setup(bot):
-    if requests is None:
-        raise NameError("You need to run `pip3 install requests`")
     check_folders()
     check_files()
     n = Emotes(bot)
