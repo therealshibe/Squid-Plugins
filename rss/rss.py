@@ -4,6 +4,7 @@ import os
 import aiohttp
 import asyncio
 import string
+import logging
 
 from cogs.utils.dataIO import fileIO
 from cogs.utils.chat_formatting import *
@@ -13,6 +14,8 @@ try:
     import feedparser
 except:
     feedparser = None
+
+log = logging.getLogger("red.rss")
 
 
 class Settings(object):
@@ -187,16 +190,10 @@ class RSS(object):
             await self.bot.say("That feedname doesn't exist.")
             return
 
-        items = feeds[server.id][channel.id][feed_name].copy()
-        url = items['url']
-        template = items['template']
-        rss = feedparser.parse(url)
-        latest = rss.entries[0]
-        to_fill = string.Template(template)
-        message = to_fill.safe_substitute(
-            name=bold(feed_name),
-            **latest
-        )
+        items = feeds[server.id][channel.id][feed_name]
+
+        message = await self.get_current_feed(server.id, name, items)
+
         await self.bot.say(message)
 
     @rss.command(pass_context=True, name="remove")
@@ -208,27 +205,43 @@ class RSS(object):
         else:
             await self.bot.say('Feed not found!')
 
-    async def get_current_feed(self, server, name, items):
+    async def get_current_feed(self, server, chan_id, name, items):
+        log.debug("getting feed {} on sid {}".format(name, server))
         url = items['url']
         last_title = items['last']
         template = items['template']
         message = None
+
         try:
             async with self.bot.session.get(url) as resp:
                 html = await resp.read()
         except:
+            log.exception("failure accessing feed at url:\n\t{}".format(url))
             return None
+
         rss = feedparser.parse(html)
+
         if rss.bozo:
+            log.debug("Feed at url below is bad.\n\t".format(url))
             return None
-        curr_title = rss.entries[0].title
+
+        try:
+            curr_title = rss.entries[0].title
+        except IndexError:
+            log.debug("no entries found for feed {} on sid {}".format(
+                name, server))
+            return message
+
         if curr_title != last_title:
+            log.debug("New entry found for feed {} on sid {}".format(
+                name, server))
             latest = rss.entries[0]
             to_fill = string.Template(template)
             message = to_fill.safe_substitute(
                 name=bold(name),
                 **latest
             )
+
             self.feeds.update_time(
                 server, chan_id, name, curr_title)
         return message
@@ -240,10 +253,13 @@ class RSS(object):
             for server in feeds:
                 for chan_id in feeds[server]:
                     for name, items in feeds[server][chan_id].items():
+                        log.debug("checking {} on sid {}".format(name, server))
                         channel = self.get_channel_object(chan_id)
                         if channel is None:
+                            log.debug("response channel not found, continuing")
                             continue
-                        msg = await self.get_current_feed(server, name, items)
+                        msg = await self.get_current_feed(server, chan_id,
+                                                          name, items)
                         if msg is not None:
                             await self.bot.send_message(channel, msg)
             await asyncio.sleep(300)
