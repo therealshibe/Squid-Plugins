@@ -208,7 +208,7 @@ class RSS(object):
         else:
             await self.bot.say('Feed not found!')
 
-    async def get_current_feed(self, name, items):
+    async def get_current_feed(self, server, name, items):
         url = items['url']
         last_title = items['last']
         template = items['template']
@@ -243,7 +243,7 @@ class RSS(object):
                         channel = self.get_channel_object(chan_id)
                         if channel is None:
                             continue
-                        msg = await self.get_current_feed(name, items)
+                        msg = await self.get_current_feed(server, name, items)
                         if msg is not None:
                             await self.bot.send_message(channel, msg)
             await asyncio.sleep(300)
