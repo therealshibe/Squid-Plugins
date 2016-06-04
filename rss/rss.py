@@ -208,6 +208,31 @@ class RSS(object):
         else:
             await self.bot.say('Feed not found!')
 
+    async def get_current_feed(self, name, items):
+        url = items['url']
+        last_title = items['last']
+        template = items['template']
+        message = None
+        try:
+            async with self.bot.session.get(url) as resp:
+                html = await resp.read()
+        except:
+            return None
+        rss = feedparser.parse(html)
+        if rss.bozo:
+            return None
+        curr_title = rss.entries[0].title
+        if curr_title != last_title:
+            latest = rss.entries[0]
+            to_fill = string.Template(template)
+            message = to_fill.safe_substitute(
+                name=bold(name),
+                **latest
+            )
+            self.feeds.update_time(
+                server, chan_id, name, curr_title)
+        return message
+
     async def read_feeds(self):
         await self.bot.wait_until_ready()
         while self == self.bot.get_cog('RSS'):
@@ -215,26 +240,12 @@ class RSS(object):
             for server in feeds:
                 for chan_id in feeds[server]:
                     for name, items in feeds[server][chan_id].items():
-                        url = items['url']
-                        last_title = items['last']
-                        template = items['template']
-                        rss = feedparser.parse(url)
-                        if rss.bozo:
+                        channel = self.get_channel_object(chan_id)
+                        if channel is None:
                             continue
-                        curr_title = rss.entries[0].title
-                        if curr_title != last_title:
-                            channel = self.get_channel_object(chan_id)
-                            if channel is None:
-                                continue
-                            latest = rss.entries[0]
-                            to_fill = string.Template(template)
-                            message = to_fill.safe_substitute(
-                                name=bold(name),
-                                **latest
-                            )
-                            self.feeds.update_time(
-                                server, chan_id, name, curr_title)
-                            await self.bot.send_message(channel, message)
+                        msg = await self.get_current_feed(name, items)
+                        if msg is not None:
+                            await self.bot.send_message(channel, msg)
             await asyncio.sleep(300)
 
 
