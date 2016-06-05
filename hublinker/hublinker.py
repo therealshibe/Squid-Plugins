@@ -322,7 +322,8 @@ class HubLinker:
                     discord.compat.create_task(self.bot.add_roles(
                         slave_member, slave_role))
 
-    async def role_create(self, server, role):
+    async def role_create(self, role):
+        server = role.server
         if not self._exists_and_enabled(server.id):
             return
         if not self._has_manage_role(server.id):
@@ -338,7 +339,8 @@ class HubLinker:
             discord.compat.create_task(self.bot.create_role(slave_server,
                                                             **role_dict))
 
-    async def role_delete(self, server, role):
+    async def role_delete(self, role):
+        server = role.server
         if not self._exists_and_enabled(server.id):
             return
         if not self._has_manage_role(server.id):
