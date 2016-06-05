@@ -42,7 +42,7 @@ class HubLinker:
         self.save_links()
         log.debug("added master: {}".format(sid))
 
-    @hublink.remove(no_pm=True, pass_context=True)
+    @hublink.command(no_pm=True, pass_context=True)
     async def remove(self, ctx):
         """Removes this server from hublinker control"""
         server = ctx.message.server
