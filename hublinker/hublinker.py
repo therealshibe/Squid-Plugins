@@ -42,6 +42,29 @@ class HubLinker:
         self.save_links()
         log.debug("added master: {}".format(sid))
 
+    @hublink.remove(no_pm=True, pass_context=True)
+    async def remove(self, ctx):
+        """Removes this server from hublinker control"""
+        server = ctx.message.server
+        sid = server.id
+
+        all_slaves = []
+        for master in self.links:
+            for slave in self.links[master]['SLAVES']:
+                all_slaves.append(slave)
+
+        if sid in self.links:
+            del self.links[sid]
+            await self.bot.say("Master removed.")
+        elif sid in all_slaves:
+            for master in self.links:
+                if sid in self.links[master]['SLAVES']:
+                    self.links[master]["SLAVES"].remove(sid)
+                    await self.bot.say("Slave removed.")
+                    break
+        else:
+            await self.bot.say('This server is neither a master nor a slave.')
+
     @hublink.command(no_pm=True, pass_context=True)
     async def slave(self, ctx, master_server_id):
         """Makes this server a 'slave' to an already created master server."""
