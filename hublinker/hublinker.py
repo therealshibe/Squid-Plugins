@@ -64,6 +64,7 @@ class HubLinker:
                     break
         else:
             await self.bot.say('This server is neither a master nor a slave.')
+        self.save_links()
 
     @hublink.command(no_pm=True, pass_context=True)
     async def slave(self, ctx, master_server_id):
