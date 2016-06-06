@@ -265,7 +265,7 @@ class HubLinker:
                 continue
 
             highest_role = sorted(slave.roles, key=lambda r: r.position,
-                                  reverse=True)
+                                  reverse=True)[0]
             if highest_role.name != "Squid":
                 raise Exception
             elif not highest_role.manage_roles:
