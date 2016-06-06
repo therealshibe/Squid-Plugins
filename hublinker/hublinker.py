@@ -264,9 +264,11 @@ class HubLinker:
             if slave is None:
                 continue
 
-            if slave.roles[-1].name != "Squid":
+            highest_role = sorted(slave.roles, key=lambda r: r.position,
+                                  reverse=True)
+            if highest_role.name != "Squid":
                 raise Exception
-            elif not slave.roles[-1].permissions.manage_roles:
+            elif not highest_role.manage_roles:
                 raise Exception
 
     def _explode_role(self, role):
