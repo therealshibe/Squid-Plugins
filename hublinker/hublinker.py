@@ -84,7 +84,8 @@ class HubLinker:
     @hublink.command(no_pm=True, pass_context=True)
     async def toggle(self, ctx):
         """Toggles whether the links coming from this server are enabled."""
-        sid = ctx.message.server.id
+        server = ctx.message.server
+        sid = server.id
         if sid in self.links:
             old = self.links[sid]['ENABLED']
             self.links[sid]['ENABLED'] = not old
@@ -92,6 +93,12 @@ class HubLinker:
                 log.debug('master {} disabled'.format(sid))
                 await self.bot.say('Master link disabled.')
             else:
+                try:
+                    self._slave_role_check(server)
+                except:
+                    await self.bot.say("You MUST put the 'Squid' role above"
+                                       " ALL OTHERS on ALL slave servers.")
+                    return
                 log.debug('master {} enabled'.format(sid))
                 await self.bot.say('Master link enabled.')
                 for slave in self.links[sid]['SLAVES']:
@@ -112,14 +119,31 @@ class HubLinker:
 
         if sid in self.links:
             for slave in self.links[sid]['SLAVES']:
-                await self.initial_linker(sid, slave)
+                try:
+                    self._slave_role_check(server)
+                except:
+                    await self.bot.say("You MUST put the 'Squid' role above"
+                                       " ALL OTHERS on ALL slave servers.")
+                else:
+                    await self.initial_linker(sid, slave)
         elif sid in all_slaves:
             for master in self.links:
                 if sid in self.links[master]['SLAVES']:
-                    log.debug('forcing init on slave '
-                              '{} from master {}'.format(sid, master))
-                    await self.initial_linker(master, sid)
-                    break
+                    ms = discord.utils.get(self.bot.servers, id=master)
+                    if ms is None:
+                        return
+
+                    try:
+                        self._slave_role_check(ms)
+                    except:
+                        await self.bot.say(
+                            "You MUST put the 'Squid' role above"
+                            " ALL OTHERS on ALL slave servers.")
+                    else:
+                        log.debug('forcing init on slave '
+                                  '{} from master {}'.format(sid, master))
+                        await self.initial_linker(master, sid)
+                        break
         else:
             await self.bot.say('This server is neither a master nor a slave.')
 
@@ -229,6 +253,21 @@ class HubLinker:
         log.debug(roleattrs)
         outrole = discord.utils.get(inserver.roles, **roleattrs)
         return outrole
+
+    def _slave_role_check(self, master):
+        mid = master.id
+        if mid not in self.links:
+            return
+
+        for sid in self.links[mid]["SLAVES"]:
+            slave = discord.utils.get(self.bot.servers, id=sid)
+            if slave is None:
+                continue
+
+            if slave.roles[-1].name != "Squid":
+                raise Exception
+            elif not slave.roles[-1].permissions.manage_roles:
+                raise Exception
 
     def _explode_role(self, role):
         ret = {}
