@@ -183,8 +183,10 @@ class RSS(object):
         channel = ctx.message.channel
         feeds = self.feeds.get_copy()
         if server.id not in feeds:
+            await self.bot.say("There are no feeds for this server.")
             return
         if channel.id not in feeds[server.id]:
+            await self.bot.say("There are no feeds for this channel.")
             return
         if feed_name not in feeds[server.id][channel.id]:
             await self.bot.say("That feedname doesn't exist.")
@@ -192,7 +194,8 @@ class RSS(object):
 
         items = feeds[server.id][channel.id][feed_name]
 
-        message = await self.get_current_feed(server.id, feed_name, items)
+        message = await self.get_current_feed(server.id, channel.id,
+                                              feed_name, items)
 
         await self.bot.say(message)
 
