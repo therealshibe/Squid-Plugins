@@ -5,6 +5,7 @@ import aiohttp
 import asyncio
 import string
 import logging
+import copy
 
 from cogs.utils.dataIO import fileIO
 from cogs.utils.chat_formatting import *
@@ -192,7 +193,8 @@ class RSS(object):
             await self.bot.say("That feedname doesn't exist.")
             return
 
-        items = feeds[server.id][channel.id][feed_name]
+        items = copy.deepcopy(feeds[server.id][channel.id][feed_name])
+        items['last'] = ''
 
         message = await self.get_current_feed(server.id, channel.id,
                                               feed_name, items)
