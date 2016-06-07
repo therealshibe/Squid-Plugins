@@ -192,7 +192,7 @@ class RSS(object):
 
         items = feeds[server.id][channel.id][feed_name]
 
-        message = await self.get_current_feed(server.id, name, items)
+        message = await self.get_current_feed(server.id, feed_name, items)
 
         await self.bot.say(message)
 
