@@ -4,7 +4,6 @@ from cogs.utils.dataIO import dataIO
 from cogs.utils import checks
 import os
 import logging
-import time
 
 log = logging.getLogger("red.permissions")
 
@@ -44,7 +43,11 @@ class Check:
     """
 
     def __call__(self, ctx):
-        pass
+        perm_cog = ctx.bot.get_cog('Permissions')
+        if perm_cog is None or not hasattr(perm_cog, 'resolve_permission'):
+            return True
+
+        return perm_cog.resolve_permission(ctx)
 
 
 class Permissions:
@@ -60,8 +63,10 @@ class Permissions:
         # All the saved permission levels with role ID's
         self.perms_we_want = self._load_perms()
 
+        self.checks_in_all = self.bot.loop.create_task(self.add_checks_to_all)
+
     def __unload(self):
-        pass
+        self.checks_in_all.cancel()
 
     def _error_raise(exc):
         def deco(func):
@@ -75,14 +80,17 @@ class Permissions:
 
     async def _error_responses(self, error, ctx):
         if isinstance(error, SpaceNotation):
-            await self.bot.say("You just tried space notation, how about"
-                               " you replace those spaces with dots and"
-                               " try again?")
+            await self.bot.send_message(
+                ctx.message.channel, "You just tried space notation, how about"
+                                     " you replace those spaces with dots and"
+                                     " try again?")
         elif isinstance(error, BadCommand):
-            await self.bot.say("Command not found.")
+            await self.bot.send_message(ctx.message.channel,
+                                        "Command not found.")
         else:
-            await self.bot.say("Unknown error: {}: {}".format(
-                type(error).__name__, str(error)))
+            await self.bot.send_message(
+                ctx.message.channel, "Unknown error: {}: {}".format(
+                    type(error).__name__, str(error)))
             log.exception("Error in {}".format(ctx.command.qualified_name),
                           exc_info=error)
 
@@ -113,6 +121,9 @@ class Permissions:
         return sorted(roles, key=lambda r: r.position)
 
     def _get_role(self, roles, role_string):
+        if role_string.lower() == "everyone":
+            role_string = "@everyone"
+
         role = discord.utils.find(
             lambda r: r.name.lower() == role_string.lower(), roles)
 
@@ -232,6 +243,7 @@ class Permissions:
     def _set_role_deny(self, command, server, role):
         cmd_dot_name = command.qualified_name.replace(" ", ".")
         if cmd_dot_name not in self.perms_we_want:
+            self.perms_we_want[cmd_dot_name] = {}
             self.perms_we_want[cmd_dot_name][server.id] = \
                 {"CHANNELS": {}, "ROLES": {}}
         self.perms_we_want[cmd_dot_name][server.id]["ROLES"][role.id] = \
@@ -299,14 +311,30 @@ class Permissions:
         """Explicitly denies [command] usage by [role] server wide
 
         This OVERRIDES channel based permissions"""
-        pass
+        server = ctx.message.server
+        command_obj = self._get_command(command)
+        role = self._get_role(server.roles, role)
+        await self.bot.say("{} {}".format(command_obj.qualified_name,
+                                          role.name))
+
+        self._set_role_deny(command_obj, server, role)
 
     @role.command(pass_context=True, name="reset")
     async def role_reset(self, ctx, command, *, role):
         """Reset permissions of [role] on [command] to the default"""
         pass
 
+    async def command_error(self, error, ctx):
+        print(ctx.command.qualified_name)
+        if ctx.command.qualified_name.split(" ")[0] == "p":
+            await self._error_responses(error.__cause__, ctx)
+
+    async def add_checks_to_all(self):
+        while True:
+            pass
+
 
 def setup(bot):
     n = Permissions(bot)
     bot.add_cog(n)
+    bot.add_listener(n.command_error, "on_command_error")
