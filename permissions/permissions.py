@@ -120,29 +120,24 @@ class Permissions:
         return deco
 
     async def _error_responses(self, error, ctx):
-        if isinstance(error, SpaceNotation):
+        original = error.__cause__
+        if isinstance(original, SpaceNotation):
             await self.bot.send_message(
                 ctx.message.channel, "You just tried space notation, how about"
                                      " you replace those spaces with dots and"
                                      " try again?")
-        elif isinstance(error, BadCommand):
+        elif isinstance(original, BadCommand):
             await self.bot.send_message(ctx.message.channel,
                                         "Command not found. Make sure you're"
                                         " using dots and not spaces (e.g."
                                         " playlist.add instead of \"playlist"
                                         " add\")")
-        elif isinstance(error, RoleNotFound):
+        elif isinstance(original, RoleNotFound):
             await self.bot.send_message(ctx.message.channel,
                                         "Role not found. Make sure you're"
                                         " using dots and not spaces (e.g."
                                         " playlist.add instead of \"playlist"
                                         " add\")")
-        else:
-            await self.bot.send_message(
-                ctx.message.channel, "Unknown error: {}: {}".format(
-                    type(error).__name__, str(error)))
-            log.exception("Error in {}".format(ctx.command.qualified_name),
-                          exc_info=error)
 
     @_error_raise(BadCommand)
     def _get_command(self, cmd_string):
@@ -525,7 +520,7 @@ class Permissions:
     async def command_error(self, error, ctx):
         cmd = ctx.command
         if cmd and cmd.qualified_name.split(" ")[0] == "p":
-            await self._error_responses(error.__cause__, ctx)
+            await self._error_responses(error, ctx)
 
     async def add_checks_to_all(self):
         while self == self.bot.get_cog('Permissions'):
