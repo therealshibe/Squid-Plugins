@@ -390,6 +390,9 @@ class Permissions:
 
     @p.group(pass_context=True)
     async def channel(self, ctx):
+        """Channel based permissions
+
+        Will be overridden by role based permissions."""
         if ctx.invoked_subcommand is None or \
                 isinstance(ctx.invoked_subcommand, commands.Group):
             await send_cmd_help(ctx)
@@ -461,6 +464,9 @@ class Permissions:
 
     @p.group(pass_context=True)
     async def role(self, ctx):
+        """Role based permissions
+
+        Overrides channel based permissions"""
         if ctx.invoked_subcommand is None or \
                 isinstance(ctx.invoked_subcommand, commands.Group):
             await send_cmd_help(ctx)
