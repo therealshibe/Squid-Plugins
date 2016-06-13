@@ -367,6 +367,7 @@ class Permissions:
         cmd_dot_name = command.qualified_name.replace(" ", ".")
         if cmd_dot_name not in self.perms_we_want:
             self.perms_we_want[cmd_dot_name] = {}
+        if server.id not in self.perms_we_want[cmd_dot_name]:
             self.perms_we_want[cmd_dot_name][server.id] = \
                 {"CHANNELS": {}, "ROLES": {}}
         self.perms_we_want[cmd_dot_name][server.id]["CHANNELS"][channel.id] = \
@@ -388,6 +389,7 @@ class Permissions:
         cmd_dot_name = command.qualified_name.replace(" ", ".")
         if cmd_dot_name not in self.perms_we_want:
             self.perms_we_want[cmd_dot_name] = {}
+        if server.id not in self.perms_we_want[cmd_dot_name]:
             self.perms_we_want[cmd_dot_name][server.id] = \
                 {"CHANNELS": {}, "ROLES": {}}
         self.perms_we_want[cmd_dot_name][server.id]["ROLES"][role.id] = \
