@@ -4,6 +4,10 @@ from cogs.utils.dataIO import dataIO
 from cogs.utils import checks
 import os
 import logging
+import copy
+import asyncio
+
+from __main__ import send_cmd_help
 
 log = logging.getLogger("red.permissions")
 
@@ -42,12 +46,29 @@ class Check:
     This is what we're going to stick into the checks for Command objects
     """
 
+    def __init__(self, command):
+        self.command = command
+
     def __call__(self, ctx):
         perm_cog = ctx.bot.get_cog('Permissions')
+        # Here we guarantee we're still loaded, if not, don't impede anything.
         if perm_cog is None or not hasattr(perm_cog, 'resolve_permission'):
             return True
 
-        return perm_cog.resolve_permission(ctx)
+        can_run = perm_cog.resolve_permission(ctx)
+
+        if can_run:
+            log.debug("user {} allowed to execute {}"
+                      " chid {}".format(ctx.message.author.name,
+                                        ctx.command.qualified_name,
+                                        ctx.message.channel.id))
+        else:
+            log.debug("user {} not allowed to execute {}"
+                      " chid {}".format(ctx.message.author.name,
+                                        ctx.command.qualified_name,
+                                        ctx.message.channel.id))
+
+        return can_run
 
 
 class Permissions:
@@ -62,11 +83,6 @@ class Permissions:
 
         # All the saved permission levels with role ID's
         self.perms_we_want = self._load_perms()
-
-        self.checks_in_all = self.bot.loop.create_task(self.add_checks_to_all)
-
-    def __unload(self):
-        self.checks_in_all.cancel()
 
     def _error_raise(exc):
         def deco(func):
@@ -112,6 +128,8 @@ class Permissions:
 
         if server:
             roles = server.roles
+        else:
+            server = roles[0].server
 
         ordered_roles = sorted(roles, key=lambda r: r.position)
 
@@ -179,6 +197,44 @@ class Permissions:
             dataIO.save_json("data/permissions/perms.json", ret)
         return ret
 
+    def _reset_channel(self, command, server, channel):
+        command = command.qualified_name.replace(' ', '.')
+        if command not in self.perms_we_want:
+            return
+
+        cmd_perms = self.perms_we_want[command]
+        if server.id not in cmd_perms:
+            return
+
+        try:
+            del self.perms_we_want[command][server.id]["CHANNELS"][channel.id]
+        except KeyError:
+            pass
+        else:
+            self._save_perms()
+
+    def _reset_permission(self, command, server, channel=None, role=None):
+        if channel:
+            self._reset_channel(command, server, channel)
+        else:
+            self._reset_role(command, server, role)
+
+    def _reset_role(self, command, server, role):
+        command = command.qualified_name.replace(' ', '.')
+        if command not in self.perms_we_want:
+            return
+
+        cmd_perms = self.perms_we_want[command]
+        if server.id not in cmd_perms:
+            return
+
+        try:
+            del self.perms_we_want[command][server.id]["ROLES"][role.id]
+        except KeyError:
+            pass
+        else:
+            self._save_perms()
+
     def resolve_permission(self, ctx):
         command = ctx.command.qualified_name.replace(' ', '.')
         server = ctx.message.server
@@ -189,6 +245,7 @@ class Permissions:
         try:
             per_command = self.perms_we_want[command]
         except KeyError:
+            log.debug("{} not in perms_we_want".format(command))
             return True
 
         try:
@@ -196,6 +253,8 @@ class Permissions:
         except KeyError:
             # In this case the server is not in the perms we want to check
             #   therefore we're just gonna assume the default "allow"
+            log.debug("sid {} not found for command {}".format(server.id,
+                                                               command))
             return True
 
         channel_perm_dict = per_server["CHANNELS"]
@@ -203,51 +262,61 @@ class Permissions:
 
         if channel.id not in channel_perm_dict:
             # Again, assume default "allow"
+            log.debug("chanid {} not found, chan_perm = True".format(
+                channel.id))
             channel_perm = True
         else:
             # We know that an admin has set permission on this channel
             if self._is_allow(channel_perm_dict[channel.id]):
+                log.debug("chanid {} found and allowed".format(channel.id))
                 channel_perm = True
             else:
+                log.debug("chanid {} found and denied".format(channel.id))
                 channel_perm = False
 
         for role in roles:
             if role.id in role_perm_dict:
                 if self._is_allow(role_perm_dict[role.id]):
+                    log.debug("role {} found and allowed".format(role.id))
                     role_perm = True
                     break
                 else:
+                    log.debug("role {} found and denied".format(role.id))
                     role_perm = False
                     break
         else:
             # By doing this we let the channel perm override in the case of
             #   no role perms being set.
+            log.debug("role not found, ignoring roles")
             role_perm = None
 
-        has_perm = channel_perm or (role_perm is True)
+        has_perm = (role_perm is None and channel_perm) or (role_perm is True)
+        log.debug("uid {} has perm: {}".format(ctx.message.author.id,
+                                               has_perm))
         return has_perm
 
     def _save_perms(self):
         dataIO.save_json('data/permissions/perms.json', self.perms_we_want)
 
-    def _set_role_allow(self, command, server, role):
-        cmd_dot_name = command.qualified_name.replace(" ", ".")
-        if cmd_dot_name not in self.perms_we_want:
-            self.perms_we_want[cmd_dot_name] = {}
-            self.perms_we_want[cmd_dot_name][server.id] = \
-                {"CHANNELS": {}, "ROLES": {}}
-        self.perms_we_want[cmd_dot_name][server.id]["ROLES"][role.id] = \
-            "+{}".format(cmd_dot_name)
-        self._save_perms()
+    def _set_permission(self, command, server, channel=None, role=None,
+                        allow=True):
+        if channel:
+            self._set_channel(command, server, channel, allow)
+        else:
+            self._set_role(command, server, role, allow)
 
-    def _set_role_deny(self, command, server, role):
+    def _set_role(self, command, server, role, allow):
+        if allow:
+            allow = "+"
+        else:
+            allow = "-"
         cmd_dot_name = command.qualified_name.replace(" ", ".")
         if cmd_dot_name not in self.perms_we_want:
             self.perms_we_want[cmd_dot_name] = {}
             self.perms_we_want[cmd_dot_name][server.id] = \
                 {"CHANNELS": {}, "ROLES": {}}
         self.perms_we_want[cmd_dot_name][server.id]["ROLES"][role.id] = \
-            "-{}".format(cmd_dot_name)
+            "{}{}".format(allow, cmd_dot_name)
         self._save_perms()
 
     @commands.group(pass_context=True)
@@ -255,7 +324,7 @@ class Permissions:
     async def p(self, ctx):
         """Permissions manager"""
         if ctx.invoked_subcommand is None:
-            return
+            await send_cmd_help(ctx)
 
     @p.error
     async def p_error(self, error, ctx):
@@ -266,7 +335,7 @@ class Permissions:
     async def channel(self, ctx):
         if ctx.invoked_subcommand is None or \
                 isinstance(ctx.invoked_subcommand, commands.Group):
-            return
+            await send_cmd_help(ctx)
 
     @channel.command(pass_context=True, name="allow")
     async def channel_allow(self, ctx, command, channel: discord.Channel):
@@ -291,7 +360,7 @@ class Permissions:
     async def role(self, ctx):
         if ctx.invoked_subcommand is None or \
                 isinstance(ctx.invoked_subcommand, commands.Group):
-            return
+            await send_cmd_help(ctx)
 
     @role.command(pass_context=True, name="allow")
     async def role_allow(self, ctx, command, *, role):
@@ -301,10 +370,10 @@ class Permissions:
         server = ctx.message.server
         command_obj = self._get_command(command)
         role = self._get_role(server.roles, role)
-        await self.bot.say("{} {}".format(command_obj.qualified_name,
-                                          role.name))
+        self._set_permission(command_obj, server, role=role)
 
-        self._set_role_allow(command_obj, server, role)
+        await self.bot.say("Role {} allowed use of {}.".format(role.name,
+                                                               command))
 
     @role.command(pass_context=True, name="deny")
     async def role_deny(self, ctx, command, *, role):
@@ -314,27 +383,51 @@ class Permissions:
         server = ctx.message.server
         command_obj = self._get_command(command)
         role = self._get_role(server.roles, role)
-        await self.bot.say("{} {}".format(command_obj.qualified_name,
-                                          role.name))
+        self._set_permission(command_obj, server, role=role, allow=False)
 
-        self._set_role_deny(command_obj, server, role)
+        await self.bot.say("Role {} denied use of {}.".format(role.name,
+                                                              command))
 
     @role.command(pass_context=True, name="reset")
     async def role_reset(self, ctx, command, *, role):
         """Reset permissions of [role] on [command] to the default"""
-        pass
+        server = ctx.message.server
+        command_obj = self._get_command(command)
+        role = self._get_role(server.roles, role)
+        self._reset_permission(command_obj, server, role=role)
+
+        await self.bot.say("{} permission reset.".format(role.name))
 
     async def command_error(self, error, ctx):
-        print(ctx.command.qualified_name)
-        if ctx.command.qualified_name.split(" ")[0] == "p":
+        cmd = ctx.command
+        if cmd and cmd.qualified_name.split(" ")[0] == "p":
             await self._error_responses(error.__cause__, ctx)
 
     async def add_checks_to_all(self):
-        while True:
-            pass
+        while self == self.bot.get_cog('Permissions'):
+            perms_we_want = copy.copy(self.perms_we_want)
+            for cmd_dot in perms_we_want:
+                try:
+                    cmd_obj = self._get_command(cmd_dot)
+                    check_obj = discord.utils.find(
+                        lambda c: isinstance(c, Check), cmd_obj.checks)
+                except BadCommand:
+                    # Command is no longer loaded/found
+                    pass
+                except AttributeError:
+                    # cmd_obj got to be None somehow so we'll assume it's not
+                    #   loaded
+                    pass
+                else:
+                    if check_obj is None:
+                        log.debug("Check object not found in {},"
+                                  " adding".format(cmd_dot))
+                        cmd_obj.checks.append(Check(cmd_dot))
+            await asyncio.sleep(0.5)
 
 
 def setup(bot):
     n = Permissions(bot)
     bot.add_cog(n)
     bot.add_listener(n.command_error, "on_command_error")
+    bot.loop.create_task(n.add_checks_to_all())
