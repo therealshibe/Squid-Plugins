@@ -166,7 +166,7 @@ class RSS(object):
 
         Each variable must start with $, valid variables:
         \tauthor, author_detail, comments, content, contributors, created,"""
-         """create, links, name, published, published_parsed, publisher,"""
+         """ create, link, name, published, published_parsed, publisher,"""
          """ publisher_detail, source, summary, summary_detail, tags, title,"""
          """ title_detail, updated, updated_parsed""")
         template = template.replace("\\t", "\t")
