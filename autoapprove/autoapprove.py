@@ -97,7 +97,7 @@ class AutoApprove:
             await self.bot.say("Failed, error code {}. ".format(status))
 
     async def get_bot_api_response(self, url, key, serverid):
-        session = self.bot.session
+        session = self.bot.http.session
         data = {"guild_id": serverid, "permissions": 0, "authorize": True}
         data = json.dumps(data).encode('utf-8')
         headers = {'authorization': key, 'content-type': 'application/json'}

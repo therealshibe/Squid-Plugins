@@ -218,7 +218,7 @@ class RSS(object):
         message = None
 
         try:
-            async with self.bot.session.get(url) as resp:
+            async with self.bot.http.session.get(url) as resp:
                 html = await resp.read()
         except:
             log.exception("failure accessing feed at url:\n\t{}".format(url))

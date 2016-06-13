@@ -84,6 +84,17 @@ class Permissions:
         # All the saved permission levels with role ID's
         self.perms_we_want = self._load_perms()
 
+        self.check_adder = None
+
+    def __unload(self):
+        if self.check_adder:
+            self.check_adder.cancel()
+
+        for cmd_dot in self.perms_we_want:
+            cmd = self._get_command(cmd_dot)
+            keepers = [c for c in cmd.checks if not isinstance(c, Check)]
+            cmd.checks = keepers
+
     def _error_raise(exc):
         def deco(func):
             def pred(*args, **kwargs):
@@ -298,6 +309,20 @@ class Permissions:
     def _save_perms(self):
         dataIO.save_json('data/permissions/perms.json', self.perms_we_want)
 
+    def _set_channel(self, command, server, channel, allow):
+        if allow:
+            allow = "+"
+        else:
+            allow = "-"
+        cmd_dot_name = command.qualified_name.replace(" ", ".")
+        if cmd_dot_name not in self.perms_we_want:
+            self.perms_we_want[cmd_dot_name] = {}
+            self.perms_we_want[cmd_dot_name][server.id] = \
+                {"CHANNELS": {}, "ROLES": {}}
+        self.perms_we_want[cmd_dot_name][server.id]["CHANNELS"][channel.id] = \
+            "{}{}".format(allow, cmd_dot_name)
+        self._save_perms()
+
     def _set_permission(self, command, server, channel=None, role=None,
                         allow=True):
         if channel:
@@ -338,23 +363,44 @@ class Permissions:
             await send_cmd_help(ctx)
 
     @channel.command(pass_context=True, name="allow")
-    async def channel_allow(self, ctx, command, channel: discord.Channel):
+    async def channel_allow(self, ctx, command, channel: discord.Channel=None):
         """Explicitly allows [command] to be used in [channel].
 
         Not really useful because role perm overrides channel perm"""
-        pass
+        server = ctx.message.server
+        command_obj = self._get_command(command)
+        if channel is None:
+            channel = ctx.message.channel
+        self._set_permission(command_obj, server, channel=channel)
+
+        await self.bot.say("Channel {} allowed use of {}.".format(
+            channel.mention, command))
 
     @channel.command(pass_context=True, name="deny")
-    async def channel_deny(self, ctx, command, channel: discord.Channel):
+    async def channel_deny(self, ctx, command, channel: discord.Channel=None):
         """Explicitly denies [command] usage in [channel]
 
         Overridden by role based permissions"""
-        pass
+        server = ctx.message.server
+        command_obj = self._get_command(command)
+        if channel is None:
+            channel = ctx.message.channel
+        self._set_permission(command_obj, server, channel=channel, allow=False)
+
+        await self.bot.say("Channel {} denied use of {}.".format(
+            channel.mention, command))
 
     @channel.command(pass_context=True, name="reset")
-    async def channel_reset(self, ctx, command, channel: discord.Channel):
+    async def channel_reset(self, ctx, command, channel: discord.Channel=None):
         """Resets permissions of [command] on [channel] to the default"""
-        pass
+        server = ctx.message.server
+        command_obj = self._get_command(command)
+        if channel is None:
+            channel = ctx.message.channel
+        self._reset_permission(command_obj, server, channel=channel)
+
+        await self.bot.say("Channel {} permissions for {} reset.".format(
+            channel.mention, command))
 
     @p.group(pass_context=True)
     async def role(self, ctx):
@@ -410,7 +456,7 @@ class Permissions:
                 try:
                     cmd_obj = self._get_command(cmd_dot)
                     check_obj = discord.utils.find(
-                        lambda c: isinstance(c, Check), cmd_obj.checks)
+                        lambda c: type(c).__name__ == "Check", cmd_obj.checks)
                 except BadCommand:
                     # Command is no longer loaded/found
                     pass
@@ -430,4 +476,5 @@ def setup(bot):
     n = Permissions(bot)
     bot.add_cog(n)
     bot.add_listener(n.command_error, "on_command_error")
-    bot.loop.create_task(n.add_checks_to_all())
+    t = bot.loop.create_task(n.add_checks_to_all())
+    n.check_adder = t

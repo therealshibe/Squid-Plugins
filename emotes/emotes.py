@@ -40,7 +40,7 @@ class Emotes:
             self.save_settings()
 
     async def update_emote_list(self):
-        async with self.bot.session.get(self.emote_url) as r:
+        async with self.bot.http.session.get(self.emote_url) as r:
             resp = await r.json()
         data = resp.get("emoticons", {})
         self.emote_list = data
