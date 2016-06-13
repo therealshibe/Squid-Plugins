@@ -7,8 +7,12 @@ import os
 import logging
 import copy
 import asyncio
-from tabulate import tabulate
 import itertools
+
+try:
+    from tabulate import tabulate
+except Exception as e:
+    raise RuntimeError("You must run `pip3 install tabulate`.") from e
 
 from __main__ import send_cmd_help, settings
 
