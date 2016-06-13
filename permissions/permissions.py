@@ -2,10 +2,13 @@ import discord
 from discord.ext import commands
 from cogs.utils.dataIO import dataIO
 from cogs.utils import checks
+from cogs.utils.chat_formatting import box
 import os
 import logging
 import copy
 import asyncio
+from tabulate import tabulate
+import itertools
 
 from __main__ import send_cmd_help
 
@@ -127,6 +130,33 @@ class Permissions:
         ret = self.bot.commands[cmd.pop(0)]
         while len(cmd) > 0:
             ret = ret.commands[cmd.pop(0)]
+        return ret
+
+    def _get_info(self, server, command):
+        command = command.qualified_name.replace(' ', '.')
+
+        per_server = self.perms_we_want[command][server.id]
+        ret = {"CHANNELS": [], "ROLES": []}
+        for chanid, status in per_server["CHANNELS"].items():
+            chan = self.bot.get_channel(chanid)
+            if chan:
+                allowed = self._is_allow(status)
+                allow_str = "Allowed" if allowed else "Denied"
+                ret["CHANNELS"].append((chan.name, allow_str))
+
+        for roleid, status in per_server["ROLES"].items():
+            role = self._get_role_from_id(server, roleid)
+            if role:
+                allowed = self._is_allow(status)
+                allow_str = "Allowed" if allowed else "Denied"
+                ret["ROLES"].append((role.name, allow_str))
+
+        chan_sort = sorted(ret["CHANNELS"], key=lambda r: r[0])
+        ret["CHANNELS"] = chan_sort
+
+        role_sort = sorted(ret["ROLES"], key=lambda r: r[0])
+        ret["ROLES"] = role_sort
+
         return ret
 
     def _get_ordered_role_list(self, server=None, roles=None):
@@ -351,11 +381,6 @@ class Permissions:
         if ctx.invoked_subcommand is None:
             await send_cmd_help(ctx)
 
-    @p.error
-    async def p_error(self, error, ctx):
-        # Error is always gonna be commands.CommandError
-        await self._error_responses(error.__cause__, ctx)
-
     @p.group(pass_context=True)
     async def channel(self, ctx):
         if ctx.invoked_subcommand is None or \
@@ -401,6 +426,31 @@ class Permissions:
 
         await self.bot.say("Channel {} permissions for {} reset.".format(
             channel.mention, command))
+
+    @p.command(pass_context=True)
+    async def info(self, ctx, command):
+        """Gives current info about permissions on your server"""
+        server = ctx.message.server
+        if command not in self.perms_we_want:
+            await self.bot.say("No permissions have been set up for that"
+                               " command")
+            return
+        elif server.id not in self.perms_we_want[command]:
+            await self.bot.say("No permissions have been set up for this"
+                               " server.")
+            return
+        cmd_obj = self._get_command(command)
+        perm_info = self._get_info(server, cmd_obj)
+        headers = ["Channel", "Status", "Role", "Status"]
+
+        partial = itertools.zip_longest(perm_info["CHANNELS"],
+                                        perm_info["ROLES"], fillvalue=("", ""))
+        data = []
+        for i, row in enumerate(partial):
+            data.append(row[0] + row[1])
+
+        msg = tabulate(data, headers=headers, tablefmt='psql')
+        await self.bot.say(box(msg))
 
     @p.group(pass_context=True)
     async def role(self, ctx):
