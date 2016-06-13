@@ -127,7 +127,10 @@ class Permissions:
                                      " try again?")
         elif isinstance(error, BadCommand):
             await self.bot.send_message(ctx.message.channel,
-                                        "Command not found.")
+                                        "Command not found. Make sure you're"
+                                        " using dots and not spaces (e.g."
+                                        " playlist.add instead of \"playlist"
+                                        " add\"")
         else:
             await self.bot.send_message(
                 ctx.message.channel, "Unknown error: {}: {}".format(
