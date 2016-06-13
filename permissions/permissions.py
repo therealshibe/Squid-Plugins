@@ -10,7 +10,7 @@ import asyncio
 from tabulate import tabulate
 import itertools
 
-from __main__ import send_cmd_help
+from __main__ import send_cmd_help, settings
 
 log = logging.getLogger("red.permissions")
 
@@ -53,14 +53,15 @@ class Check:
         self.command = command
 
     def __call__(self, ctx):
+        author = ctx.message.author
         perm_cog = ctx.bot.get_cog('Permissions')
         # Here we guarantee we're still loaded, if not, don't impede anything.
         if perm_cog is None or not hasattr(perm_cog, 'resolve_permission'):
             return True
 
-        can_run = perm_cog.resolve_permission(ctx)
+        has_perm = perm_cog.resolve_permission(ctx)
 
-        if can_run:
+        if has_perm:
             log.debug("user {} allowed to execute {}"
                       " chid {}".format(ctx.message.author.name,
                                         ctx.command.qualified_name,
@@ -71,7 +72,13 @@ class Check:
                                         ctx.command.qualified_name,
                                         ctx.message.channel.id))
 
+        can_run = has_perm or author.id == self.owner_id
+
         return can_run
+
+    @property
+    def owner_id(self):
+        return settings.owner
 
 
 class Permissions:
@@ -374,7 +381,7 @@ class Permissions:
             "{}{}".format(allow, cmd_dot_name)
         self._save_perms()
 
-    @commands.group(pass_context=True)
+    @commands.group(pass_context=True, no_pm=True)
     @checks.serverowner_or_permissions(manage_roles=True)
     async def p(self, ctx):
         """Permissions manager"""
