@@ -503,6 +503,7 @@ class Permissions:
     async def info(self, ctx, command):
         """Gives current info about permissions on your server"""
         server = ctx.message.server
+        channel = ctx.message.channel
         if command not in self.perms_we_want:
             await self.bot.say("No permissions have been set up for that"
                                " command")
@@ -513,13 +514,17 @@ class Permissions:
             return
         cmd_obj = self._get_command(command)
         perm_info = self._get_info(server, cmd_obj)
-        headers = ["Channel", "Status", "Role", "Status"]
+        headers = ["Channel", "Status", "Role", "Status", "Locked Here"]
 
         partial = itertools.zip_longest(perm_info["CHANNELS"],
                                         perm_info["ROLES"], fillvalue=("", ""))
         data = []
         for i, row in enumerate(partial):
-            data.append(row[0] + row[1])
+            if i == 0:
+                locked = (str(self._is_locked(command, server, channel)), )
+            else:
+                locked = tuple()
+            data.append(row[0] + row[1] + locked)
 
         msg = tabulate(data, headers=headers, tablefmt='psql')
         await self.bot.say(box(msg))
