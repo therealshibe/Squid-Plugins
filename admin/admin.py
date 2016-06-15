@@ -43,6 +43,9 @@ class Admin:
         else:
             return self._settable_roles[server.id]
 
+    def _is_server_locked(self):
+        return self._settings.get("SERVER_LOCK", False)
+
     def _role_from_string(self, server, rolename, roles=None):
         if roles is None:
             roles = server.roles
@@ -61,6 +64,10 @@ class Admin:
     def _set_selfroles(self, server, rolelist):
         self._settable_roles[server.id] = rolelist
         self._settings["ROLES"] = self._settable_roles
+        self._save_settings()
+
+    def _set_serverlock(self, lock=True):
+        self._settings["SERVER_LOCK"] = lock
         self._save_settings()
 
     @commands.command(no_pm=True, pass_context=True)
@@ -129,6 +136,17 @@ class Admin:
                                " issue a new announcement.")
         else:
             self._announce_msg = msg
+
+    @commands.command(pass_context=True)
+    @checks.is_owner()
+    async def serverlock(self, ctx):
+        """Toggles locking the current server list, will not join others"""
+        if self._is_server_locked():
+            self._set_serverlock(False)
+            await self.bot.say("Server list unlocked")
+        else:
+            self._set_serverlock()
+            await self.bot.say("Server list locked.")
 
     @commands.command(pass_context=True)
     @checks.is_owner()
@@ -275,6 +293,10 @@ class Admin:
                 self._announce_msg = None
             await asyncio.sleep(1)
 
+    async def server_locker(self, server):
+        if self._is_server_locked():
+            await self.bot.leave_server(server)
+
 
 def check_files():
     if not os.path.exists('data/admin/settings.json'):
@@ -290,4 +312,5 @@ def setup(bot):
     check_files()
     n = Admin(bot)
     bot.add_cog(n)
+    bot.add_listener(n.server_locker, "on_server_join")
     bot.loop.create_task(n.announce_manager())
