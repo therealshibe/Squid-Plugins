@@ -109,6 +109,22 @@ class Permissions:
             keepers = [c for c in cmd.checks if not isinstance(c, Check)]
             cmd.checks = keepers
 
+    def _check_perm_entry(self, command, server):
+        if command not in self.perms_we_want:
+            self.perms_we_want[command] = {"LOCKS": {"GLOBAL": False,
+                                                     "SERVERS": {},
+                                                     "CHANNELS": {}}}
+
+        if server.id not in self.perms_we_want[command]:
+            self.perms_we_want[command][server.id] = {"CHANNELS": {},
+                                                      "ROLES": {},
+                                                      "LOCKS": {}}
+
+        if "LOCKS" not in self.perms_we_want[command]:
+            self.perms_we_want[command]["LOCKS"] = {"GLOBAL": False,
+                                                    "SERVERS": {},
+                                                    "CHANNELS": {}}
+
     def _error_raise(exc):
         def deco(func):
             def pred(*args, **kwargs):
@@ -244,6 +260,18 @@ class Permissions:
             return True
         return False
 
+    def _is_locked(self, command, server, channel):
+        locks = self.perms_we_want[command].get("LOCKS", None)
+
+        if locks is None:
+            return False
+
+        global_lock = locks["GLOBAL"]
+        server_lock = locks["SERVERS"].get(server.id, False)
+        channel_lock = locks["CHANNELS"].get(channel.id, False)
+
+        return global_lock or server_lock or channel_lock
+
     def _load_perms(self):
         try:
             ret = dataIO.load_json("data/permissions/perms.json")
@@ -252,6 +280,27 @@ class Permissions:
             os.mkdir("data/permissions")
             dataIO.save_json("data/permissions/perms.json", ret)
         return ret
+
+    def _lock_channel(self, command, channel, lock=True):
+        self._check_perm_entry(command, channel.server)
+
+        self.perms_we_want[command]["LOCKS"]["CHANNELS"][channel.id] = lock
+
+        self._save_perms()
+
+    def _lock_global(self, command, server, lock=True):
+        self._check_perm_entry(command, server)
+
+        self.perms_we_want[command]["LOCKS"]["GLOBAL"] = lock
+
+        self._save_perms()
+
+    def _lock_server(self, command, server, lock=True):
+        self._check_perm_entry(command, server)
+
+        self.perms_we_want[command]["LOCKS"]["SERVERS"][server.id] = lock
+
+        self._save_perms()
 
     def _reset_channel(self, command, server, channel):
         command = command.qualified_name.replace(' ', '.')
@@ -346,7 +395,10 @@ class Permissions:
             log.debug("role not found, ignoring roles")
             role_perm = None
 
-        has_perm = (role_perm is None and channel_perm) or (role_perm is True)
+        is_locked = self._is_locked(command, server, channel)
+
+        has_perm = ((role_perm is None and channel_perm) or
+                    (role_perm is True)) and not is_locked
         log.debug("uid {} has perm: {}".format(ctx.message.author.id,
                                                has_perm))
         return has_perm
@@ -472,6 +524,43 @@ class Permissions:
         msg = tabulate(data, headers=headers, tablefmt='psql')
         await self.bot.say(box(msg))
 
+    @p.group(pass_context=True, invoke_without_command=True)
+    async def lock(self, ctx, command):
+        """Globally locks a command from being used by anyone but owner
+
+        Can call `lock server` or `lock channel` as well."""
+        cmd_obj = self._get_command(command)
+        server = ctx.message.server
+        if cmd_obj is None:
+            await self.bot.say("Invalid command")
+
+        self._lock_global(command, server)
+        await self.bot.say("Globally locked {}".format(command))
+
+    @lock.command(pass_context=True, name="channel")
+    async def lock_channel(self, ctx, command):
+        """Locks a command on this channel from being used by anyone but"""
+        """ owner"""
+        channel = ctx.message.channel
+        cmd_obj = self._get_command(command)
+        if cmd_obj is None:
+            await self.bot.say("Invalid command")
+
+        self._lock_channel(command, channel)
+        await self.bot.say("Channel locked {}".format(command))
+
+    @lock.command(pass_context=True, name="server")
+    async def lock_server(self, ctx, command):
+        """Locks a command on this server from being used by anyone but"""
+        """ owner"""
+        server = ctx.message.server
+        cmd_obj = self._get_command(command)
+        if cmd_obj is None:
+            await self.bot.say("Invalid command")
+
+        self._lock_server(command, server)
+        await self.bot.say("Server locked {}".format(command))
+
     @p.group(pass_context=True)
     async def role(self, ctx):
         """Role based permissions
@@ -516,6 +605,45 @@ class Permissions:
         self._reset_permission(command_obj, server, role=role)
 
         await self.bot.say("{} permission reset.".format(role.name))
+
+    @p.group(pass_context=True, invoke_without_command=True)
+    async def unlock(self, ctx, command):
+        """Globally unlocks a command from being used by anyone but owner
+
+        Can call `unlock server` or `unlock channel` as well."""
+        cmd_obj = self._get_command(command)
+        server = ctx.message.server
+        if cmd_obj is None:
+            await self.bot.say("Invalid command")
+        elif cmd_obj.qualified_name != command:
+            raise SpaceNotation(command)
+
+        self._lock_global(command, server, False)
+        await self.bot.say("Globally unlocked {}".format(command))
+
+    @unlock.command(pass_context=True, name="channel")
+    async def unlock_channel(self, ctx, command):
+        """Unocks a command on this channel from being used by anyone but"""
+        """ owner"""
+        channel = ctx.message.channel
+        cmd_obj = self._get_command(command)
+        if cmd_obj is None:
+            await self.bot.say("Invalid command")
+
+        self._lock_channel(command, channel, False)
+        await self.bot.say("Channel unlocked {}".format(command))
+
+    @unlock.command(pass_context=True, name="server")
+    async def unlock_server(self, ctx, command):
+        """Unocks a command on this server from being used by anyone but"""
+        """ owner"""
+        server = ctx.message.server
+        cmd_obj = self._get_command(command)
+        if cmd_obj is None:
+            await self.bot.say("Invalid command")
+
+        self._lock_server(command, server, False)
+        await self.bot.say("Server unlocked {}".format(command))
 
     async def command_error(self, error, ctx):
         cmd = ctx.command
