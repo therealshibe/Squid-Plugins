@@ -204,7 +204,7 @@ class Admin:
         else:
             await self.bot.say("User does not have that role.")
 
-    @commands.command(no_pm=True, pass_context=True)
+    @commands.group(no_pm=True, pass_context=True, invoke_without_command=True)
     async def selfrole(self, ctx, *, rolename):
         """Allows users to set their own role.
 
@@ -236,6 +236,39 @@ class Admin:
             log.debug("Role {} added to {} on {}".format(rolename, author.name,
                                                          server.id))
             await self.bot.say("Role added.")
+
+    @selfrole.command(no_pm=True, pass_context=True, name="remove")
+    async def selfrole_remove(self, ctx, *, rolename):
+        """Allows users to remove their own roles
+
+        Configurable using `adminset`"""
+        server = ctx.message.server
+        author = ctx.message.author
+        role_names = self._get_selfrole_names(server)
+        if role_names is None:
+            await self.bot.say("I have no user settable roles for this"
+                               " server.")
+            return
+
+        roles = list(map(lambda r: self._role_from_string(server, r),
+                         role_names))
+        role_to_remove = self._role_from_string(server, rolename, roles=roles)
+
+        try:
+            await self.bot.remove_roles(author, role_to_remove)
+        except discord.errors.Forbidden:
+            log.debug("{} just tried to remove a role but I was"
+                      " forbidden".format(author.name))
+            await self.bot.say("I don't have permissions to do that.")
+        except AttributeError:  # role_to_remove is NoneType
+            log.debug("{} not found as removeable on {}".format(rolename,
+                                                                server.id))
+            await self.bot.say("That role isn't user removeable.")
+        else:
+            log.debug("Role {} removed from {} on {}".format(rolename,
+                                                             author.name,
+                                                             server.id))
+            await self.bot.say("Role removed.")
 
     @commands.command(no_pm=True, pass_context=True)
     async def say(self, ctx, *, text):
