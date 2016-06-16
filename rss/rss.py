@@ -28,6 +28,10 @@ class Feeds(object):
         self.check_folders()
         # {server:{channel:{name:,url:,last_scraped:,template:}}}
         self.feeds = fileIO("data/RSS/feeds.json", "load")
+        self.session = aiohttp.ClientSession()
+
+    def __unload(self):
+        self.session.close()
 
     def save_feeds(self):
         fileIO("data/RSS/feeds.json", "save", self.feeds)
@@ -218,7 +222,7 @@ class RSS(object):
         message = None
 
         try:
-            async with self.bot.http.session.get(url) as resp:
+            async with self.session.get(url) as resp:
                 html = await resp.read()
         except:
             log.exception("failure accessing feed at url:\n\t{}".format(url))

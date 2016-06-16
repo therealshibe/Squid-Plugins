@@ -17,6 +17,10 @@ class Emotes:
         self.available_emotes = fileIO(
             "data/emotes/available_emotes.json", "load")
         self.emote_url = "https://api.twitch.tv/kraken/chat/emoticons"
+        self.session = aiohttp.ClientSession()
+
+    def __unload(self):
+        self.session.close()
 
     def save_settings(self):
         fileIO("data/emotes/settings.json", "save", self.settings)
@@ -40,7 +44,7 @@ class Emotes:
             self.save_settings()
 
     async def update_emote_list(self):
-        async with self.bot.http.session.get(self.emote_url) as r:
+        async with self.session.get(self.emote_url) as r:
             resp = await r.json()
         data = resp.get("emoticons", {})
         self.emote_list = data

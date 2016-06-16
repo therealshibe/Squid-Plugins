@@ -5,6 +5,7 @@ from __main__ import send_cmd_help
 import urllib.parse as up
 import os
 import json
+import aiohttp
 
 
 class AutoApprove:
@@ -14,6 +15,10 @@ class AutoApprove:
         self.bot = bot
         self.base_api_url = "https://discordapp.com/api/oauth2/authorize?"
         self.enabled = fileIO('data/autoapprove/enabled.json', 'load')
+        self.session = aiohttp.ClientSession()
+
+    def __unload(self):
+        self.session.close()
 
     def save_enabled(self):
         fileIO('data/autoapprove/enabled.json', 'save', self.enabled)
@@ -97,11 +102,10 @@ class AutoApprove:
             await self.bot.say("Failed, error code {}. ".format(status))
 
     async def get_bot_api_response(self, url, key, serverid):
-        session = self.bot.http.session
         data = {"guild_id": serverid, "permissions": 0, "authorize": True}
         data = json.dumps(data).encode('utf-8')
         headers = {'authorization': key, 'content-type': 'application/json'}
-        async with session.post(url, data=data, headers=headers) as r:
+        async with self.session.post(url, data=data, headers=headers) as r:
             status = r.status
         return status
 
