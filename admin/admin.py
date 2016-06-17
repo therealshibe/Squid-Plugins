@@ -109,11 +109,15 @@ class Admin:
 
     @adminset.command(pass_context=True, name="selfroles")
     @checks.admin_or_permissions(manage_roles=True)
-    async def adminset_selfroles(self, ctx, *, rolelist):
+    async def adminset_selfroles(self, ctx, *, rolelist=None):
         """Set which roles users can set themselves.
 
         COMMA SEPARATED LIST (e.g. Admin,Staff,Mod)"""
         server = ctx.message.server
+        if rolelist is None:
+            await self.bot.say("selfrole list cleared.")
+            self._set_selfroles(server, [])
+            return
         unparsed_roles = list(map(lambda r: r.strip(), rolelist.split(',')))
         parsed_roles = list(map(lambda r: self._role_from_string(server, r),
                                 unparsed_roles))
