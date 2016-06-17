@@ -435,11 +435,21 @@ class Permissions:
         dataIO.save_json('data/permissions/perms.json', self.perms_we_want)
 
     def _set_channel(self, command, server, channel, allow):
+        try:
+            cmd_dot_name = command.qualified_name.replace(" ", ".")
+        except AttributeError:
+            # If we pass a cog name in as command
+            cmds = list(filter(lambda c: c.cog_name == command,
+                               self.bot.commands.values()))
+            for cmd in cmds:
+                self._set_channel(cmd, server, channel, allow)
+            return
+
         if allow:
             allow = "+"
         else:
             allow = "-"
-        cmd_dot_name = command.qualified_name.replace(" ", ".")
+
         if cmd_dot_name not in self.perms_we_want:
             self.perms_we_want[cmd_dot_name] = {}
         if server.id not in self.perms_we_want[cmd_dot_name]:
@@ -457,19 +467,27 @@ class Permissions:
             self._set_role(command, server, role, allow)
 
     def _set_role(self, command, server, role, allow):
-        if allow:
-            allow = "+"
+        try:
+            cmd_dot_name = command.qualified_name.replace(" ", ".")
+        except AttributeError:
+            # If we pass a cog name in as command
+            cmds = list(filter(lambda c: c.cog_name == command,
+                               self.bot.commands.values()))
+            for cmd in cmds:
+                self._set_role(cmd, server, role, allow)
         else:
-            allow = "-"
-        cmd_dot_name = command.qualified_name.replace(" ", ".")
-        if cmd_dot_name not in self.perms_we_want:
-            self.perms_we_want[cmd_dot_name] = {}
-        if server.id not in self.perms_we_want[cmd_dot_name]:
-            self.perms_we_want[cmd_dot_name][server.id] = \
-                {"CHANNELS": {}, "ROLES": {}}
-        self.perms_we_want[cmd_dot_name][server.id]["ROLES"][role.id] = \
-            "{}{}".format(allow, cmd_dot_name)
-        self._save_perms()
+            if allow:
+                allow = "+"
+            else:
+                allow = "-"
+            if cmd_dot_name not in self.perms_we_want:
+                self.perms_we_want[cmd_dot_name] = {}
+            if server.id not in self.perms_we_want[cmd_dot_name]:
+                self.perms_we_want[cmd_dot_name][server.id] = \
+                    {"CHANNELS": {}, "ROLES": {}}
+            self.perms_we_want[cmd_dot_name][server.id]["ROLES"][role.id] = \
+                "{}{}".format(allow, cmd_dot_name)
+            self._save_perms()
 
     @commands.group(pass_context=True, no_pm=True)
     @checks.serverowner_or_permissions(manage_roles=True)
