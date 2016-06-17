@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord.ext.commands import CommandNotFound
 from cogs.utils.dataIO import dataIO
 from cogs.utils import checks
 from cogs.utils.chat_formatting import box
@@ -19,7 +20,7 @@ from __main__ import send_cmd_help, settings
 log = logging.getLogger("red.permissions")
 
 
-class PermissionsError(Exception):
+class PermissionsError(CommandNotFound):
     """
     Base exception for all others in this module
     """
@@ -117,13 +118,16 @@ class Permissions:
 
         if server.id not in self.perms_we_want[command]:
             self.perms_we_want[command][server.id] = {"CHANNELS": {},
-                                                      "ROLES": {},
-                                                      "LOCKS": {}}
+                                                      "ROLES": {}}
 
         if "LOCKS" not in self.perms_we_want[command]:
             self.perms_we_want[command]["LOCKS"] = {"GLOBAL": False,
+                                                    "COGS": [],
                                                     "SERVERS": {},
                                                     "CHANNELS": {}}
+
+        if "COGS" not in self.perms_we_want[command]["LOCKS"]:
+            self.perms_we_want[command]["LOCKS"]["COGS"] = []
 
     def _error_raise(exc):
         def deco(func):
@@ -270,7 +274,10 @@ class Permissions:
         server_lock = locks["SERVERS"].get(server.id, False)
         channel_lock = locks["CHANNELS"].get(channel.id, False)
 
-        return global_lock or server_lock or channel_lock
+        cog_name = self._get_command(command).cog_name
+        cog_lock = cog_name in locks.get("COGS", set())
+
+        return global_lock or cog_lock or server_lock or channel_lock
 
     def _load_perms(self):
         try:
@@ -285,6 +292,27 @@ class Permissions:
         self._check_perm_entry(command, channel.server)
 
         self.perms_we_want[command]["LOCKS"]["CHANNELS"][channel.id] = lock
+
+        self._save_perms()
+
+    def _lock_cog(self, server, cogname, lock=True):
+        cmds = list(filter(lambda c: c.cog_name == cogname,
+                           self.bot.commands.values()))
+        for cmd_name in cmds:
+            command = cmd_name.qualified_name.replace(" ", ".")
+            self._check_perm_entry(command, server)
+            if lock:
+                if cogname not in \
+                        self.perms_we_want[command]["LOCKS"]["COGS"]:
+                    self.perms_we_want[command]["LOCKS"]["COGS"].append(
+                        cogname)
+            else:
+                try:
+                    self.perms_we_want[command]["LOCKS"]["COGS"].remove(
+                        cogname)
+                except Exception:
+                    # Cog wasn't locked
+                    pass
 
         self._save_perms()
 
@@ -518,6 +546,10 @@ class Permissions:
 
         partial = itertools.zip_longest(perm_info["CHANNELS"],
                                         perm_info["ROLES"], fillvalue=("", ""))
+        partial = list(partial)
+
+        if len(partial) == 0:
+            partial = ((("", ""), ("", "")), )  # For compat below
         data = []
         for i, row in enumerate(partial):
             if i == 0:
@@ -553,6 +585,20 @@ class Permissions:
 
         self._lock_channel(command, channel)
         await self.bot.say("Channel locked {}".format(command))
+
+    @lock.command(pass_context=True, name="cog")
+    async def lock_cog(self, ctx, cog_name):
+        """Locks all commands in a cog"""
+        if ctx.bot.get_cog(cog_name) is None:
+            await self.bot.say("No cog by that name found, make sure your"
+                               " capitalization is correct.")
+            return
+
+        server = ctx.message.server
+
+        self._lock_cog(server, cog_name)
+
+        await self.bot.say('Commands from cog {} locked.'.format(cog_name))
 
     @lock.command(pass_context=True, name="server")
     async def lock_server(self, ctx, command):
@@ -637,6 +683,20 @@ class Permissions:
 
         self._lock_channel(command, channel, False)
         await self.bot.say("Channel unlocked {}".format(command))
+
+    @unlock.command(pass_context=True, name="cog")
+    async def unlock_cog(self, ctx, cog_name):
+        """Unlocks all commands in a cog"""
+        if ctx.bot.get_cog(cog_name) is None:
+            await self.bot.say("No cog by that name found, make sure your"
+                               " capitalization is correct.")
+            return
+
+        server = ctx.message.server
+
+        self._lock_cog(server, cog_name, False)
+
+        await self.bot.say("Commands from cog {} locked.".format(cog_name))
 
     @unlock.command(pass_context=True, name="server")
     async def unlock_server(self, ctx, command):
