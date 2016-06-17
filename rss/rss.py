@@ -28,10 +28,6 @@ class Feeds(object):
         self.check_folders()
         # {server:{channel:{name:,url:,last_scraped:,template:}}}
         self.feeds = fileIO("data/RSS/feeds.json", "load")
-        self.session = aiohttp.ClientSession()
-
-    def __unload(self):
-        self.session.close()
 
     def save_feeds(self):
         fileIO("data/RSS/feeds.json", "save", self.feeds)
@@ -113,6 +109,10 @@ class RSS(object):
 
         self.settings = Settings()
         self.feeds = Feeds()
+        self.session = aiohttp.ClientSession()
+
+    def __unload(self):
+        self.session.close()
 
     def get_channel_object(self, channel_id):
         channel = self.bot.get_channel(channel_id)
