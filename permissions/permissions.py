@@ -330,6 +330,14 @@ class Permissions:
 
         self._save_perms()
 
+    def _reset(self, server):
+        for cmd in self.perms_we_want:
+            try:
+                del self.perms_we_want[cmd][server.id]
+            except KeyError:
+                pass
+        self._save_perms()
+
     def _reset_channel(self, command, server, channel):
         try:
             command = command.qualified_name.replace(' ', '.')
@@ -669,6 +677,15 @@ class Permissions:
 
         self._lock_server(command, server)
         await self.bot.say("Server locked {}".format(command))
+
+    @p.command(pass_context=True, name="reset")
+    async def p_reset(self, ctx):
+        """Resets ALL permissions on this server"""
+        server = ctx.message.server
+
+        self._reset(server)
+
+        await self.bot.say("Permissions reset.")
 
     @p.group(pass_context=True)
     async def role(self, ctx):
