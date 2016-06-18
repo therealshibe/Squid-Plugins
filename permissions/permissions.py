@@ -64,7 +64,8 @@ class Check:
         if perm_cog is None or not hasattr(perm_cog, 'resolve_permission'):
             return True
 
-        has_perm = perm_cog.resolve_permission(ctx)
+        with perm_cog.perm_lock:
+            has_perm = perm_cog.resolve_permission(ctx)
 
         if has_perm:
             log.debug("user {} allowed to execute {}"
@@ -98,6 +99,7 @@ class Permissions:
 
         # All the saved permission levels with role ID's
         self.perms_we_want = self._load_perms()
+        self.perm_lock = asyncio.Lock()
 
         self.check_adder = None
 
@@ -110,7 +112,8 @@ class Permissions:
             keepers = [c for c in cmd.checks if not isinstance(c, Check)]
             cmd.checks = keepers
 
-    def _check_perm_entry(self, command, server):
+    async def _check_perm_entry(self, command, server):
+        await self.perm_lock.acquire()
         if command not in self.perms_we_want:
             self.perms_we_want[command] = {"LOCKS": {"GLOBAL": False,
                                                      "SERVERS": {},
@@ -128,6 +131,7 @@ class Permissions:
 
         if "COGS" not in self.perms_we_want[command]["LOCKS"]:
             self.perms_we_want[command]["LOCKS"]["COGS"] = []
+        self.perm_lock.release()
 
     def _error_raise(exc):
         def deco(func):
@@ -167,7 +171,8 @@ class Permissions:
             ret = ret.commands[cmd.pop(0)]
         return ret
 
-    def _get_info(self, server, command):
+    async def _get_info(self, server, command):
+        await self.perm_lock.acquire()
         command = command.qualified_name.replace(' ', '.')
 
         per_server = self.perms_we_want[command][server.id]
@@ -191,6 +196,7 @@ class Permissions:
 
         role_sort = sorted(ret["ROLES"], key=lambda r: r[0])
         ret["ROLES"] = role_sort
+        self.perm_lock.release()
 
         return ret
 
@@ -288,19 +294,21 @@ class Permissions:
             dataIO.save_json("data/permissions/perms.json", ret)
         return ret
 
-    def _lock_channel(self, command, channel, lock=True):
-        self._check_perm_entry(command, channel.server)
+    async def _lock_channel(self, command, channel, lock=True):
+        await self._check_perm_entry(command, channel.server)
 
-        self.perms_we_want[command]["LOCKS"]["CHANNELS"][channel.id] = lock
+        with (await self.perm_lock):
+            self.perms_we_want[command]["LOCKS"]["CHANNELS"][channel.id] = lock
 
         self._save_perms()
 
-    def _lock_cog(self, server, cogname, lock=True):
+    async def _lock_cog(self, server, cogname, lock=True):
         cmds = list(filter(lambda c: c.cog_name == cogname,
                            self.bot.commands.values()))
         for cmd_name in cmds:
             command = cmd_name.qualified_name.replace(" ", ".")
-            self._check_perm_entry(command, server)
+            await self._check_perm_entry(command, server)
+            await self.perm_lock.acquire()
             if lock:
                 if cogname not in \
                         self.perms_we_want[command]["LOCKS"]["COGS"]:
@@ -313,32 +321,43 @@ class Permissions:
                 except Exception:
                     # Cog wasn't locked
                     pass
+            self.perm_lock.release()
 
         self._save_perms()
 
-    def _lock_global(self, command, server, lock=True):
-        self._check_perm_entry(command, server)
+    async def _lock_global(self, command, server, lock=True):
+        await self._check_perm_entry(command, server)
 
-        self.perms_we_want[command]["LOCKS"]["GLOBAL"] = lock
-
-        self._save_perms()
-
-    def _lock_server(self, command, server, lock=True):
-        self._check_perm_entry(command, server)
-
-        self.perms_we_want[command]["LOCKS"]["SERVERS"][server.id] = lock
+        with (await self.perm_lock):
+            self.perms_we_want[command]["LOCKS"]["GLOBAL"] = lock
 
         self._save_perms()
 
-    def _reset(self, server):
+    async def _lock_server(self, command, server, lock=True):
+        await self._check_perm_entry(command, server)
+
+        with (await self.perm_lock):
+            self.perms_we_want[command]["LOCKS"]["SERVERS"][server.id] = lock
+
+        self._save_perms()
+
+    async def _reset(self, server):
+        await self.perm_lock.acquire()
         for cmd in self.perms_we_want:
             try:
                 del self.perms_we_want[cmd][server.id]
             except KeyError:
                 pass
+
+            for chan in server.channels:
+                try:
+                    del self.perms_we_want[cmd]["LOCKS"]["CHANNELS"][chan.id]
+                except KeyError:
+                    pass
+        self.perm_lock.release()
         self._save_perms()
 
-    def _reset_channel(self, command, server, channel):
+    async def _reset_channel(self, command, server, channel):
         try:
             command = command.qualified_name.replace(' ', '.')
         except AttributeError:
@@ -346,11 +365,12 @@ class Permissions:
             cmds = list(filter(lambda c: c.cog_name == command,
                                self.bot.commands.values()))
             for cmd in cmds:
-                self._reset_channel(cmd, server, channel)
+                await self._reset_channel(cmd, server, channel)
             return
         if command not in self.perms_we_want:
             return
 
+        await self.perm_lock.acquire()
         cmd_perms = self.perms_we_want[command]
         if server.id not in cmd_perms:
             return
@@ -359,16 +379,18 @@ class Permissions:
             del self.perms_we_want[command][server.id]["CHANNELS"][channel.id]
         except KeyError:
             pass
-        else:
-            self._save_perms()
 
-    def _reset_permission(self, command, server, channel=None, role=None):
+        self.perm_lock.release()
+        self._save_perms()
+
+    async def _reset_permission(self, command, server, channel=None,
+                                role=None):
         if channel:
-            self._reset_channel(command, server, channel)
+            await self._reset_channel(command, server, channel)
         else:
-            self._reset_role(command, server, role)
+            await self._reset_role(command, server, role)
 
-    def _reset_role(self, command, server, role):
+    async def _reset_role(self, command, server, role):
         try:
             command = command.qualified_name.replace(' ', '.')
         except AttributeError:
@@ -379,6 +401,7 @@ class Permissions:
                 self._reset_role(cmd, server, role)
             return
 
+        await self.perm_lock.acquire()
         if command not in self.perms_we_want:
             return
 
@@ -390,10 +413,12 @@ class Permissions:
             del self.perms_we_want[command][server.id]["ROLES"][role.id]
         except KeyError:
             pass
-        else:
-            self._save_perms()
+        self.perm_lock.release()
+
+        self._save_perms()
 
     def resolve_permission(self, ctx):
+        """Should always be perm locked by the Checks object"""
         command = ctx.command.qualified_name.replace(' ', '.')
         server = ctx.message.server
         channel = ctx.message.channel
@@ -459,7 +484,7 @@ class Permissions:
     def _save_perms(self):
         dataIO.save_json('data/permissions/perms.json', self.perms_we_want)
 
-    def _set_channel(self, command, server, channel, allow):
+    async def _set_channel(self, command, server, channel, allow):
         try:
             cmd_dot_name = command.qualified_name.replace(" ", ".")
         except AttributeError:
@@ -475,6 +500,7 @@ class Permissions:
         else:
             allow = "-"
 
+        await self.perm_lock.acquire()
         if cmd_dot_name not in self.perms_we_want:
             self.perms_we_want[cmd_dot_name] = {}
         if server.id not in self.perms_we_want[cmd_dot_name]:
@@ -482,17 +508,18 @@ class Permissions:
                 {"CHANNELS": {}, "ROLES": {}}
         self.perms_we_want[cmd_dot_name][server.id]["CHANNELS"][channel.id] = \
             "{}{}".format(allow, cmd_dot_name)
+        self.perm_lock.release()
         self._save_perms()
 
-    def _set_permission(self, command, server, channel=None, role=None,
-                        allow=True):
+    async def _set_permission(self, command, server, channel=None, role=None,
+                              allow=True):
         """Command can be a command object or cog name (string)"""
         if channel:
-            self._set_channel(command, server, channel, allow)
+            await self._set_channel(command, server, channel, allow)
         else:
-            self._set_role(command, server, role, allow)
+            await self._set_role(command, server, role, allow)
 
-    def _set_role(self, command, server, role, allow):
+    async def _set_role(self, command, server, role, allow):
         """Command can be a command object or cog name (string)"""
         try:
             cmd_dot_name = command.qualified_name.replace(" ", ".")
@@ -507,6 +534,7 @@ class Permissions:
                 allow = "+"
             else:
                 allow = "-"
+            await self.perm_lock.acquire()
             if cmd_dot_name not in self.perms_we_want:
                 self.perms_we_want[cmd_dot_name] = {}
             if server.id not in self.perms_we_want[cmd_dot_name]:
@@ -514,6 +542,7 @@ class Permissions:
                     {"CHANNELS": {}, "ROLES": {}}
             self.perms_we_want[cmd_dot_name][server.id]["ROLES"][role.id] = \
                 "{}{}".format(allow, cmd_dot_name)
+            self.perm_lock.release()
             self._save_perms()
 
     @commands.group(pass_context=True, no_pm=True)
@@ -548,7 +577,7 @@ class Permissions:
                 raise e
         if channel is None:
             channel = ctx.message.channel
-        self._set_permission(command_obj, server, channel=channel)
+        await self._set_permission(command_obj, server, channel=channel)
 
         await self.bot.say("Channel {} allowed use of {}.".format(
             channel.mention, command))
@@ -569,7 +598,8 @@ class Permissions:
                 raise e
         if channel is None:
             channel = ctx.message.channel
-        self._set_permission(command_obj, server, channel=channel, allow=False)
+        await self._set_permission(command_obj, server, channel=channel,
+                                   allow=False)
 
         await self.bot.say("Channel {} denied use of {}.".format(
             channel.mention, command))
@@ -588,7 +618,7 @@ class Permissions:
                 raise e
         if channel is None:
             channel = ctx.message.channel
-        self._reset_permission(command_obj, server, channel=channel)
+        await self._reset_permission(command_obj, server, channel=channel)
 
         await self.bot.say("Channel {} permissions for {} reset.".format(
             channel.mention, command))
@@ -607,7 +637,7 @@ class Permissions:
                                " server.")
             return
         cmd_obj = self._get_command(command)
-        perm_info = self._get_info(server, cmd_obj)
+        perm_info = await self._get_info(server, cmd_obj)
         headers = ["Channel", "Status", "Role", "Status", "Locked Here"]
 
         partial = itertools.zip_longest(perm_info["CHANNELS"],
@@ -637,7 +667,7 @@ class Permissions:
         if cmd_obj is None:
             await self.bot.say("Invalid command")
 
-        self._lock_global(command, server)
+        await self._lock_global(command, server)
         await self.bot.say("Globally locked {}".format(command))
 
     @lock.command(pass_context=True, name="channel")
@@ -649,7 +679,7 @@ class Permissions:
         if cmd_obj is None:
             await self.bot.say("Invalid command")
 
-        self._lock_channel(command, channel)
+        await self._lock_channel(command, channel)
         await self.bot.say("Channel locked {}".format(command))
 
     @lock.command(pass_context=True, name="cog")
@@ -662,7 +692,7 @@ class Permissions:
 
         server = ctx.message.server
 
-        self._lock_cog(server, cog_name)
+        await self._lock_cog(server, cog_name)
 
         await self.bot.say('Commands from cog {} locked.'.format(cog_name))
 
@@ -675,7 +705,7 @@ class Permissions:
         if cmd_obj is None:
             await self.bot.say("Invalid command")
 
-        self._lock_server(command, server)
+        await self._lock_server(command, server)
         await self.bot.say("Server locked {}".format(command))
 
     @p.command(pass_context=True, name="reset")
@@ -683,7 +713,7 @@ class Permissions:
         """Resets ALL permissions on this server"""
         server = ctx.message.server
 
-        self._reset(server)
+        await self._reset(server)
 
         await self.bot.say("Permissions reset.")
 
@@ -711,7 +741,7 @@ class Permissions:
             except KeyError:
                 raise e
         role = self._get_role(server.roles, role)
-        self._set_permission(command_obj, server, role=role)
+        await self._set_permission(command_obj, server, role=role)
 
         await self.bot.say("Role {} allowed use of {}.".format(role.name,
                                                                command))
@@ -731,7 +761,7 @@ class Permissions:
             except KeyError:
                 raise e
         role = self._get_role(server.roles, role)
-        self._set_permission(command_obj, server, role=role, allow=False)
+        await self._set_permission(command_obj, server, role=role, allow=False)
 
         await self.bot.say("Role {} denied use of {}.".format(role.name,
                                                               command))
@@ -749,7 +779,7 @@ class Permissions:
             except KeyError:
                 raise e
         role = self._get_role(server.roles, role)
-        self._reset_permission(command_obj, server, role=role)
+        await self._reset_permission(command_obj, server, role=role)
 
         await self.bot.say("{} permission reset.".format(role.name))
 
@@ -765,7 +795,7 @@ class Permissions:
         elif cmd_obj.qualified_name != command:
             raise SpaceNotation(command)
 
-        self._lock_global(command, server, False)
+        await self._lock_global(command, server, False)
         await self.bot.say("Globally unlocked {}".format(command))
 
     @unlock.command(pass_context=True, name="channel")
@@ -777,7 +807,7 @@ class Permissions:
         if cmd_obj is None:
             await self.bot.say("Invalid command")
 
-        self._lock_channel(command, channel, False)
+        await self._lock_channel(command, channel, False)
         await self.bot.say("Channel unlocked {}".format(command))
 
     @unlock.command(pass_context=True, name="cog")
@@ -790,9 +820,9 @@ class Permissions:
 
         server = ctx.message.server
 
-        self._lock_cog(server, cog_name, False)
+        await self._lock_cog(server, cog_name, False)
 
-        await self.bot.say("Commands from cog {} locked.".format(cog_name))
+        await self.bot.say("Commands from cog {} unlocked.".format(cog_name))
 
     @unlock.command(pass_context=True, name="server")
     async def unlock_server(self, ctx, command):
@@ -803,7 +833,7 @@ class Permissions:
         if cmd_obj is None:
             await self.bot.say("Invalid command")
 
-        self._lock_server(command, server, False)
+        await self._lock_server(command, server, False)
         await self.bot.say("Server unlocked {}".format(command))
 
     async def command_error(self, error, ctx):
