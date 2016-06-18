@@ -64,8 +64,7 @@ class Check:
         if perm_cog is None or not hasattr(perm_cog, 'resolve_permission'):
             return True
 
-        with perm_cog.perm_lock:
-            has_perm = perm_cog.resolve_permission(ctx)
+        has_perm = perm_cog.resolve_permission(ctx)
 
         if has_perm:
             log.debug("user {} allowed to execute {}"
@@ -101,7 +100,7 @@ class Permissions:
         self.perms_we_want = self._load_perms()
         self.perm_lock = asyncio.Lock()
 
-        self.check_adder = None
+        self.check_adder = bot.loop.create_task(self.add_checks_to_all())
 
     def __unload(self):
         if self.check_adder:
@@ -418,7 +417,6 @@ class Permissions:
         self._save_perms()
 
     def resolve_permission(self, ctx):
-        """Should always be perm locked by the Checks object"""
         command = ctx.command.qualified_name.replace(' ', '.')
         server = ctx.message.server
         channel = ctx.message.channel
@@ -868,5 +866,3 @@ def setup(bot):
     n = Permissions(bot)
     bot.add_cog(n)
     bot.add_listener(n.command_error, "on_command_error")
-    t = bot.loop.create_task(n.add_checks_to_all())
-    n.check_adder = t
