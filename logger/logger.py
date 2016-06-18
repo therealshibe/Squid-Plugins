@@ -154,7 +154,7 @@ class Logger:
 
     @logger.command(pass_context=True, name="rollover")
     async def logger_rollover(self, ctx, name):
-        """Roll's over a log"""
+        """Rolls over a log"""
         if name not in self._get_loggers():
             await self.bot.say("Invalid logger.")
             return
