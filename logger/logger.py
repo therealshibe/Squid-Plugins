@@ -90,6 +90,15 @@ class Logger:
                 curr_log = logging.getLogger(logname)
                 curr_log.setLevel(level)
 
+    def _rollover(self, name):
+        curr_log = logging.getLogger(name)
+
+        for handler in curr_log.handlers:
+            try:
+                handler.doRollover()
+            except AttributeError:
+                pass
+
     def _save_levels(self):
         dataIO.save_json('data/logger/saved_levels.json', self._saved_levels)
 
@@ -142,6 +151,19 @@ class Logger:
         self._save_levels()
 
         await self.bot.say("Level reset.")
+
+    @logger.command(pass_context=True, name="rollover")
+    async def logger_rollover(self, ctx, name):
+        """Roll's over a log"""
+        if name not in self._get_loggers():
+            await self.bot.say("Invalid logger.")
+            return
+        elif name not in self._get_red_loggers():
+            await self.bot.say("Not a Red logger.")
+            return
+
+        self._rollover(name)
+        await self.bot.say("Rolled {}.".format(name))
 
     @logger.command(pass_context=True, name="setlevel")
     async def logger_setlevel(self, ctx, name, level):
