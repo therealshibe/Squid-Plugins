@@ -331,7 +331,15 @@ class Permissions:
         self._save_perms()
 
     def _reset_channel(self, command, server, channel):
-        command = command.qualified_name.replace(' ', '.')
+        try:
+            command = command.qualified_name.replace(' ', '.')
+        except AttributeError:
+            # If we pass a cog name in as command
+            cmds = list(filter(lambda c: c.cog_name == command,
+                               self.bot.commands.values()))
+            for cmd in cmds:
+                self._reset_channel(cmd, server, channel)
+            return
         if command not in self.perms_we_want:
             return
 
@@ -353,7 +361,16 @@ class Permissions:
             self._reset_role(command, server, role)
 
     def _reset_role(self, command, server, role):
-        command = command.qualified_name.replace(' ', '.')
+        try:
+            command = command.qualified_name.replace(' ', '.')
+        except AttributeError:
+            # If we pass a cog name in as command
+            cmds = list(filter(lambda c: c.cog_name == command,
+                               self.bot.commands.values()))
+            for cmd in cmds:
+                self._reset_role(cmd, server, role)
+            return
+
         if command not in self.perms_we_want:
             return
 
@@ -461,12 +478,14 @@ class Permissions:
 
     def _set_permission(self, command, server, channel=None, role=None,
                         allow=True):
+        """Command can be a command object or cog name (string)"""
         if channel:
             self._set_channel(command, server, channel, allow)
         else:
             self._set_role(command, server, role, allow)
 
     def _set_role(self, command, server, role, allow):
+        """Command can be a command object or cog name (string)"""
         try:
             cmd_dot_name = command.qualified_name.replace(" ", ".")
         except AttributeError:
@@ -505,13 +524,20 @@ class Permissions:
                 isinstance(ctx.invoked_subcommand, commands.Group):
             await send_cmd_help(ctx)
 
-    @channel.command(pass_context=True, name="allow")
+    @channel.command(pass_context=True, name="allow", hidden=True)
     async def channel_allow(self, ctx, command, channel: discord.Channel=None):
-        """Explicitly allows [command] to be used in [channel].
+        """Explicitly allows [command/cog] to be used in [channel].
 
         Not really useful because role perm overrides channel perm"""
         server = ctx.message.server
-        command_obj = self._get_command(command)
+        try:
+            command_obj = self._get_command(command)
+        except BadCommand as e:
+            try:
+                self.bot.cogs[command]
+                command_obj = command
+            except KeyError:
+                raise e
         if channel is None:
             channel = ctx.message.channel
         self._set_permission(command_obj, server, channel=channel)
@@ -521,11 +547,18 @@ class Permissions:
 
     @channel.command(pass_context=True, name="deny")
     async def channel_deny(self, ctx, command, channel: discord.Channel=None):
-        """Explicitly denies [command] usage in [channel]
+        """Explicitly denies [command/cog] usage in [channel]
 
         Overridden by role based permissions"""
         server = ctx.message.server
-        command_obj = self._get_command(command)
+        try:
+            command_obj = self._get_command(command)
+        except BadCommand as e:
+            try:
+                self.bot.cogs[command]
+                command_obj = command
+            except KeyError:
+                raise e
         if channel is None:
             channel = ctx.message.channel
         self._set_permission(command_obj, server, channel=channel, allow=False)
@@ -535,9 +568,16 @@ class Permissions:
 
     @channel.command(pass_context=True, name="reset")
     async def channel_reset(self, ctx, command, channel: discord.Channel=None):
-        """Resets permissions of [command] on [channel] to the default"""
+        """Resets permissions of [command/cog] on [channel] to the default"""
         server = ctx.message.server
-        command_obj = self._get_command(command)
+        try:
+            command_obj = self._get_command(command)
+        except BadCommand as e:
+            try:
+                self.bot.cogs[command]
+                command_obj = command
+            except KeyError:
+                raise e
         if channel is None:
             channel = ctx.message.channel
         self._reset_permission(command_obj, server, channel=channel)
@@ -594,8 +634,8 @@ class Permissions:
 
     @lock.command(pass_context=True, name="channel")
     async def lock_channel(self, ctx, command):
-        """Locks a command on this channel from being used by anyone but"""
-        """ owner"""
+        """Locks a command on this channel from being used by anyone but""" + \
+            """ owner"""
         channel = ctx.message.channel
         cmd_obj = self._get_command(command)
         if cmd_obj is None:
@@ -620,8 +660,8 @@ class Permissions:
 
     @lock.command(pass_context=True, name="server")
     async def lock_server(self, ctx, command):
-        """Locks a command on this server from being used by anyone but"""
-        """ owner"""
+        """Locks a command on this server from being used by anyone but""" + \
+            """ owner"""
         server = ctx.message.server
         cmd_obj = self._get_command(command)
         if cmd_obj is None:
@@ -641,11 +681,18 @@ class Permissions:
 
     @role.command(pass_context=True, name="allow")
     async def role_allow(self, ctx, command, *, role):
-        """Explicitly allows [command] to be used by [role] server wide
+        """Explicitly allows [command/cog] to be used by [role] server wide
 
         This OVERRIDES channel based permissions"""
         server = ctx.message.server
-        command_obj = self._get_command(command)
+        try:
+            command_obj = self._get_command(command)
+        except BadCommand as e:
+            try:
+                self.bot.cogs[command]
+                command_obj = command
+            except KeyError:
+                raise e
         role = self._get_role(server.roles, role)
         self._set_permission(command_obj, server, role=role)
 
@@ -654,11 +701,18 @@ class Permissions:
 
     @role.command(pass_context=True, name="deny")
     async def role_deny(self, ctx, command, *, role):
-        """Explicitly denies [command] usage by [role] server wide
+        """Explicitly denies [command/cog] usage by [role] server wide
 
         This OVERRIDES channel based permissions"""
         server = ctx.message.server
-        command_obj = self._get_command(command)
+        try:
+            command_obj = self._get_command(command)
+        except BadCommand as e:
+            try:
+                self.bot.cogs[command]
+                command_obj = command
+            except KeyError:
+                raise e
         role = self._get_role(server.roles, role)
         self._set_permission(command_obj, server, role=role, allow=False)
 
@@ -667,9 +721,16 @@ class Permissions:
 
     @role.command(pass_context=True, name="reset")
     async def role_reset(self, ctx, command, *, role):
-        """Reset permissions of [role] on [command] to the default"""
+        """Reset permissions of [role] on [command/cog] to the default"""
         server = ctx.message.server
-        command_obj = self._get_command(command)
+        try:
+            command_obj = self._get_command(command)
+        except BadCommand as e:
+            try:
+                self.bot.cogs[command]
+                command_obj = command
+            except KeyError:
+                raise e
         role = self._get_role(server.roles, role)
         self._reset_permission(command_obj, server, role=role)
 
