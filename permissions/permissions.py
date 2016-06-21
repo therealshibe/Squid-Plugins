@@ -526,7 +526,7 @@ class Permissions:
             cmds = list(filter(lambda c: c.cog_name == command,
                                self.bot.commands.values()))
             for cmd in cmds:
-                self._set_role(cmd, server, role, allow)
+                await self._set_role(cmd, server, role, allow)
         else:
             if allow:
                 allow = "+"
