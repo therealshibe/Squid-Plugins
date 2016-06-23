@@ -490,7 +490,7 @@ class Permissions:
             cmds = list(filter(lambda c: c.cog_name == command,
                                self.bot.commands.values()))
             for cmd in cmds:
-                self._set_channel(cmd, server, channel, allow)
+                await self._set_channel(cmd, server, channel, allow)
             return
 
         if allow:
