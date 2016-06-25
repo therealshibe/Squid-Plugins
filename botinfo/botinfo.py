@@ -53,20 +53,6 @@ class BotInfo:
         ret += " members.\n"
         await self.bot.say(ret)
 
-    @commands.command(pass_context=True)
-    async def contact(self, ctx, *, message: str):
-        """Send a message to my owner"""
-        author = ctx.message.author.name
-        server = ctx.message.server.name
-        owner = utils.find(lambda mem: str(mem.id) == settings.owner,
-                           self.bot.get_all_members())
-        message = "A message from {} on {}:\n\t{}".format(
-            author, server, message)
-        if owner is not None:
-            await self.bot.send_message(owner, message)
-        else:
-            await self.bot.say("Sorry, my owner is offline, try again later?")
-
     @commands.command()
     async def support(self):
         """Support continued bot and cog development.
