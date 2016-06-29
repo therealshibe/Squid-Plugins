@@ -143,7 +143,7 @@ class Emotes:
         self.save_available_emotes()
 
     @commands.group(no_pm=True, pass_context=True,
-                    invoke_without_subcommand=True)
+                    invoke_without_command=True)
     async def emote(self, ctx, emote_name: str):
         """Enabled emote and all emotes from same twitch channel"""
         server = ctx.message.server
