@@ -278,16 +278,17 @@ class Admin:
     async def say(self, ctx, *, text):
         """Repeats what you tell it.
 
-        Can use `message`, `channel`, `server`, and `discord`
+        Can use `message`, `channel`, `server`
         """
         user = ctx.message.author
         if hasattr(user, 'bot') and user.bot is True:
             return
         try:
+            if "__" in text:
+                raise ValueError
             evald = eval(text, {}, {'message': ctx.message,
                                     'channel': ctx.message.channel,
-                                    'server': ctx.message.server,
-                                    'discord': discord})
+                                    'server': ctx.message.server})
         except:
             evald = text
         if len(str(evald)) > 2000:
