@@ -142,7 +142,8 @@ class Emotes:
                 })
         self.save_available_emotes()
 
-    @commands.command(no_pm=True, pass_context=True)
+    @commands.group(no_pm=True, pass_context=True,
+                    invoke_without_subcommand=True)
     async def emote(self, ctx, emote_name: str):
         """Enabled emote and all emotes from same twitch channel"""
         server = ctx.message.server
@@ -168,6 +169,12 @@ class Emotes:
                                    "channel emotes added.")
                 return
         await self.bot.say("No such emote '{}' found.".format(emote_name))
+
+    @emote.command(pass_context=True, name="update")
+    async def emote_update(self, ctx):
+        """Refreshes list of emotes"""
+        await self.update_emote_list()
+        await self.bot.say("Updated emote list.")
 
     async def check_messages(self, message):
         if message.author.id == self.bot.user.id:
