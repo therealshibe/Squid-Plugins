@@ -5,6 +5,12 @@ from cogs.utils import checks
 from cogs.utils.dataIO import fileIO
 import os
 from __main__ import send_cmd_help
+from io import BytesIO
+
+try:
+    import PIL.Image as Image
+except Exception as e:
+    raise RuntimeError("You must `pip3 install pillow` to use emotes") from e
 
 
 class Emotes:
@@ -36,11 +42,22 @@ class Emotes:
             return 5
         return self.settings[server.id].get("LIMIT_PER_MESSAGE", 5)
 
+    def get_scale(self, server):
+        try:
+            return self.settings[server.id]["SCALE"]
+        except KeyError:
+            return 1.0
+
     def set_limit_per_message(self, server, value):
         if server is None:
             return
         if self._is_enabled(server):
             self.settings[server.id]["LIMIT_PER_MESSAGE"] = int(value)
+            self.save_settings()
+
+    def set_scale(self, server, value):
+        if self._is_enabled(server):
+            self.settings[server.id]["SCALE"] = float(value)
             self.save_settings()
 
     async def update_emote_list(self):
@@ -90,6 +107,15 @@ class Emotes:
             limit = 5
         self.set_limit_per_message(ctx.message.server, limit)
         await self.bot.say("Limit set to {}.".format(limit))
+
+    @emoteset.command(name="scale", pass_context=True)
+    async def _emoteset_scale(self, ctx, scale: float):
+        """Sets server emote scaling"""
+        if scale > 5 or scale < 0.5:
+            await self.bot.say("Scale must be between 0.5 and 3")
+            return
+        self.set_scale(ctx.message.server, scale)
+        await self.bot.say("Emote scale set to {}".format(scale))
 
     def _write_image(self, chan_id, name, image_data):
         # Assume channel folder already exists
@@ -197,7 +223,20 @@ class Emotes:
                         emote["chan_id"], emote["file_name"])
                     if not os.path.exists(fname):
                         break
-                    await self.bot.send_file(message.channel, fname)
+                    img = Image.open(fname)
+                    if self.get_scale(message.server) != 1.0:
+                        scale = self.get_scale(message.server)
+                        img = img.resize((int(img.width * scale),
+                                          int(img.height * scale)),
+                                         Image.ANTIALIAS)
+                    tmpfile = BytesIO()
+                    fmt = os.path.splitext(emote["file_name"])[1].replace('.',
+                                                                          '')
+                    img.save(tmpfile, format=fmt)
+                    tmpfile.seek(0)
+                    await self.bot.send_file(message.channel, tmpfile,
+                                             filename=emote["file_name"])
+                    tmpfile.close()
                     count += 1
                     if self.get_limit_per_message(message.server) != 0 and \
                             count >= \
