@@ -63,6 +63,8 @@ class Check:
         # Here we guarantee we're still loaded, if not, don't impede anything.
         if perm_cog is None or not hasattr(perm_cog, 'resolve_permission'):
             return True
+        elif ctx.message.channel.is_private:
+            return True
 
         has_perm = perm_cog.resolve_permission(ctx)
 
