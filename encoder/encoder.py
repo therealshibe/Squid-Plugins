@@ -26,6 +26,16 @@ class AudioCacheFileConverter(commands.Converter):
         return cache_path
 
 
+class EncodedCacheFile(commands.Converter):
+    def convert(self):
+        cache_path = os.path.join('data/audio/cache',
+                                  self.argument + "-encoded")
+        if not os.path.exists(cache_path):
+            raise commands.BadArgument("Cache file '{}' not found.".format(
+                cache_path))
+        return cache_path
+
+
 class EncodedSong:
     def __init__(self, filename, delay, encoded_data):
         self.filename = filename
@@ -189,7 +199,7 @@ class Encoder:
         log.debug('encoding {}'.format(filename))
 
     @commands.command(pass_context=True)
-    async def fakeplay(self, ctx, filename: AudioCacheFileConverter):
+    async def fakeplay(self, ctx, filename: EncodedCacheFile):
         audio = self.bot.get_cog('Audio')
         with open(filename, 'rb') as f:
             esong = pickle.load(f)
