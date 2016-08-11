@@ -260,7 +260,7 @@ class Scheduler:
             for item in to_delete:
                 self.to_kill.remove(item)
 
-            await asyncio.sleep(15)
+            await asyncio.sleep(5)
         log.debug('manager dying')
         while self.queue.qsize() != 0:
             await self.queue.get()
