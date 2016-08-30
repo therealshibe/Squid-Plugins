@@ -109,9 +109,15 @@ class Permissions:
             self.check_adder.cancel()
 
         for cmd_dot in self.perms_we_want:
-            cmd = self._get_command(cmd_dot)
-            keepers = [c for c in cmd.checks if not isinstance(c, Check)]
-            cmd.checks = keepers
+            try:
+                cmd = self._get_command(cmd_dot)
+            except BadCommand:
+                # Just means the command couldn't be found which is okay
+                #   because we're unloading anyways.
+                pass
+            else:
+                keepers = [c for c in cmd.checks if not isinstance(c, Check)]
+                cmd.checks = keepers
 
     async def _check_perm_entry(self, command, server):
         await self.perm_lock.acquire()
