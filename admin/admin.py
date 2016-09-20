@@ -274,27 +274,6 @@ class Admin:
                                                              server.id))
             await self.bot.say("Role removed.")
 
-"""    @commands.command(no_pm=True, pass_context=True)
-    async def say(self, ctx, *, text):
-        \"""Repeats what you tell it.
-
-        Can use `message`, `channel`, `server`
-        \"""
-        user = ctx.message.author
-        if hasattr(user, 'bot') and user.bot is True:
-            return
-        try:
-            if "__" in text:
-                raise ValueError
-            evald = eval(text, {}, {'message': ctx.message,
-                                    'channel': ctx.message.channel,
-                                    'server': ctx.message.server})
-        except:
-            evald = text
-        if len(str(evald)) > 2000:
-            evald = str(evald)[-1990:] + " you fuck."
-        await self.bot.say(evald)"""
-
     @commands.command(pass_context=True)
     @checks.is_owner()
     async def sudo(self, ctx, user: discord.Member, *, command):
