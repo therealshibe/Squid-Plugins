@@ -208,6 +208,12 @@ class Admin:
         else:
             await self.bot.say("User does not have that role.")
 
+    @commands.command(pass_context=True, no_pm=True)
+    async def say(self, ctx, *, text):
+        """Bot repeats what you tell it to, utility for scheduler."""
+        channel = ctx.message.channel
+        await self.bot.send_message(channel, text)
+
     @commands.group(no_pm=True, pass_context=True, invoke_without_command=True)
     async def selfrole(self, ctx, *, rolename):
         """Allows users to set their own role.
