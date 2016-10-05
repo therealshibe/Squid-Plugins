@@ -798,8 +798,6 @@ class Permissions:
         server = ctx.message.server
         if cmd_obj is None:
             await self.bot.say("Invalid command")
-        elif cmd_obj.qualified_name != command:
-            raise SpaceNotation(command)
 
         await self._lock_global(command, server, False)
         await self.bot.say("Globally unlocked {}".format(command))
