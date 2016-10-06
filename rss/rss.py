@@ -149,13 +149,18 @@ class RSS(object):
     @rss.command(pass_context=True, name="add")
     async def _rss_add(self, ctx, name: str, url: str):
         """Add an RSS feed to the current channel"""
+        channel = ctx.message.channel
         valid_url = await self.valid_url(url)
         if valid_url:
             self.feeds.add_feed(ctx, name, url)
-            await self.bot.say('Feed "{}" added. Modify the template using'
-                               ' rss template'.format(name))
+            await self.bot.send_message(
+                channel,
+                'Feed "{}" added. Modify the template using'
+                ' rss template'.format(name))
         else:
-            await self.bot.say('Invalid or unavailable URL.')
+            await self.bot.send_message(
+                channel,
+                'Invalid or unavailable URL.')
 
     @rss.command(pass_context=True, name="list")
     async def _rss_list(self, ctx):
