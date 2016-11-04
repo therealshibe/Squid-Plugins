@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from cogs.utils import checks
 from cogs.utils.dataIO import dataIO
+from cogs.utils.chat_formatting import box, pagify
 from __main__ import settings, send_cmd_help
 from copy import deepcopy
 import asyncio
@@ -289,6 +290,31 @@ class Admin:
         new_msg.author = user
         new_msg.content = self.bot.command_prefix[0] + command
         await self.bot.process_commands(new_msg)
+
+    @commands.command(pass_context=True, hidden=True)
+    @checks.is_owner()  # I don't know how permissive this should be yet
+    async def whisper(self, ctx, id, *, text):
+        author = ctx.message.author
+
+        target = discord.utils.get(self.bot.get_all_members(), id=id)
+        if target is None:
+            target = self.bot.get_channel(id)
+            if target is None:
+                target = self.bot.get_server(id)
+
+        prefix = "Hello, you're getting a message from {} ({})".format(
+            author.name, author.id)
+        payload = "{}\n\n{}".format(prefix, text)
+
+        try:
+            for page in pagify(payload, delims=[" ", "\n"], shorten_by=10):
+                await self.bot.send_message(target, box(page))
+        except discord.errors.Forbidden:
+            log.debug("Forbidden to send message to {}".format(id))
+        except (discord.errors.NotFound, discord.errors.InvalidArgument):
+            log.debug("{} not found!".format(id))
+        else:
+            await self.bot.say("Done.")
 
     async def announcer(self, msg):
         server_ids = map(lambda s: s.id, self.bot.servers)
