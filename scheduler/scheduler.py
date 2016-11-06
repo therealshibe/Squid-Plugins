@@ -220,6 +220,7 @@ class Scheduler:
         data['author'] = {'id': event.author}
         data['nonce'] = randint(-2**32, (2**32) - 1)
         data['channel_id'] = event.channel
+        data['reactions'] = []
         fake_message = discord.Message(**data)
         # coro = self.bot.process_commands(fake_message)
         log.info("Running '{}' in {}".format(event.name, event.server))
