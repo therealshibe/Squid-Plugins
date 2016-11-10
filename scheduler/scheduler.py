@@ -119,6 +119,7 @@ class Scheduler:
 
         for event in events:
             await self.queue.put(event)
+        self.queue_lock.release()
 
     @commands.group(no_pm=True, pass_context=True)
     @checks.mod_or_permissions(manage_messages=True)
