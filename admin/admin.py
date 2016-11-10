@@ -170,7 +170,7 @@ class Admin:
             for i, server in enumerate(servers, 1):
                 msg += "{}: {}\n".format(i, server.name)
             msg += "\nTo post an invite for a server just type its number."
-            for page in pagify(msg):
+            for page in pagify(msg, delims=["\n"]):
                 await self.bot.say(box(page))
                 await asyncio.sleep(1.5)  # Just in case for rate limits
             msg = await self.bot.wait_for_message(author=owner, timeout=15)
