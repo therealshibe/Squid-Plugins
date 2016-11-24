@@ -94,11 +94,6 @@ class Admin:
             await self.bot.say('I don\'t have manage_roles.')
             return
 
-        if author.id == settings.owner:
-            pass
-        elif not channel.permissions_for(author).manage_roles:
-            raise commands.CheckFailure
-
         await self.bot.add_roles(user, role)
         await self.bot.say('Added role {} to {}'.format(role.name, user.name))
 
