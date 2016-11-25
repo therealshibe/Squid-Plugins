@@ -669,6 +669,10 @@ class Permissions:
         """Globally locks a command from being used by anyone but owner
 
         Can call `lock server` or `lock channel` as well."""
+        author = ctx.message.author
+        if author.id != self.bot.settings.owner:
+            return
+
         cmd_obj = self._get_command(command)
         server = ctx.message.server
         if cmd_obj is None:
@@ -692,6 +696,10 @@ class Permissions:
     @lock.command(pass_context=True, name="cog")
     async def lock_cog(self, ctx, cog_name):
         """Locks all commands in a cog"""
+        author = ctx.message.author
+        if author.id != self.bot.settings.owner:
+            return
+
         if ctx.bot.get_cog(cog_name) is None:
             await self.bot.say("No cog by that name found, make sure your"
                                " capitalization is correct.")
