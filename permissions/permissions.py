@@ -633,8 +633,14 @@ class Permissions:
     @p.command(pass_context=True)
     async def info(self, ctx, command):
         """Gives current info about permissions on your server"""
+        author = ctx.message.author
         server = ctx.message.server
         channel = ctx.message.channel
+
+        if author.id != self.bot.settings.owner:
+            # OOPS really need owner check for global lock
+            return
+
         if command not in self.perms_we_want:
             await self.bot.say("No permissions have been set up for that"
                                " command")
