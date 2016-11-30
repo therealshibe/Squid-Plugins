@@ -59,13 +59,14 @@ class MentionTracker:
     async def _mention_unregister(self, ctx):
         """Unregister yourself from mention tracking"""
         user = ctx.message.author
+        s = ctx.message.server
         if user.id in self.mail:
             del self.mail[user.id]
             await self.bot.say("You will stop receiving mention mail.")
         else:
             await self.bot.say("You haven't registered yet, try {}.".format(
                 inline(
-                    self.bot.settings.get_prefix()[0] + "mention register")))
+                    self.bot.settings.get_prefix(s)[0] + "mention register")))
 
     @mention.command(pass_context=True, name="read")
     async def _mention_read(self, ctx):
