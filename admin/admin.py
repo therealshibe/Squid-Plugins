@@ -3,7 +3,6 @@ from discord.ext import commands
 from cogs.utils import checks
 from cogs.utils.dataIO import dataIO
 from cogs.utils.chat_formatting import box, pagify
-from __main__ import settings, send_cmd_help
 from copy import deepcopy
 import asyncio
 import logging
@@ -101,7 +100,7 @@ class Admin:
     async def adminset(self, ctx):
         """Manage Admin settings"""
         if ctx.invoked_subcommand is None:
-            await send_cmd_help(ctx)
+            await self.bot.send_cmd_help(ctx)
 
     @adminset.command(pass_context=True, name="selfroles")
     @checks.admin_or_permissions(manage_roles=True)
