@@ -3,7 +3,6 @@ from discord.ext import commands
 from discord import utils
 from cogs.utils.dataIO import fileIO
 from cogs.utils.chat_formatting import *
-from __main__ import settings, send_cmd_help
 import os
 import re
 import string
@@ -24,7 +23,7 @@ class BotInfo:
         '''ret = "["
         middle = "|".join(self.bot.command_prefix)
         return ret+middle+"]"'''
-        return self.bot.command_prefix[0]
+        return self.bot.settings.get_prefix()[0]
 
     @property
     def join_message(self):
@@ -87,7 +86,7 @@ class BotInfo:
     @commands.group(pass_context=True, no_pm=True)
     async def welcome(self, ctx):
         if not ctx.invoked_subcommand:
-            await send_cmd_help(ctx)
+            await self.bot.send_cmd_help_help(ctx)
 
     @welcome.command(name="set", pass_context=True)
     async def _welcome_set(self, ctx, *, message):
