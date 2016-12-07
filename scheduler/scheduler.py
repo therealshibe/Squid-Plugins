@@ -228,7 +228,7 @@ class Scheduler:
         channel = self.bot.get_channel(event.channel)
         try:
             server = channel.server
-            prefix = self.bot.get_prefix(server)[0]
+            prefix = self.bot.settings.get_prefixes(server)[0]
         except AttributeError:
             log.debug("Channel no longer found, not running scheduled event.")
             return
