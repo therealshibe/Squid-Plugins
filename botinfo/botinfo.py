@@ -23,7 +23,7 @@ class BotInfo:
         '''ret = "["
         middle = "|".join(self.bot.command_prefix)
         return ret+middle+"]"'''
-        return self.bot.settings.get_prefixes()[0]
+        return self.bot.settings.get_prefixes(None)[0]
 
     @property
     def join_message(self):
