@@ -66,7 +66,8 @@ class MentionTracker:
         else:
             await self.bot.say("You haven't registered yet, try {}.".format(
                 inline(
-                    self.bot.settings.get_prefix(s)[0] + "mention register")))
+                    self.bot.settings.get_prefixes(s)[0] +
+                    "mention register")))
 
     @mention.command(pass_context=True, name="read")
     async def _mention_read(self, ctx):
