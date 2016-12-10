@@ -46,3 +46,31 @@ class Example518:
             role).is_role_enabled \
             else "is not"
         await self.bot.say("Bot {} role enabled.".format(txt))
+
+    @cmds.command(pass_context=True)
+    async def memberenablecheck(self, ctx, member: discord.Member,
+                                set: bool=None):
+        if set is not None:
+            self.conf.member(member).set(
+                "is_member_enabled", set)
+        txt = "is" if self.conf.member(
+            member).is_member_enabled \
+            else "is not"
+        await self.bot.say("Bot {} member enabled.".format(txt))
+
+    @cmds.command(pass_context=True)
+    async def userenablecheck(self, ctx, user: discord.Member, set: bool=None):
+        if set is not None:
+            self.conf.user(user).set(
+                "is_user_enabled", set)
+        txt = "is" if self.conf.user(
+            user).is_user_enabled \
+            else "is not"
+        await self.bot.say("Bot {} user enabled.".format(txt))
+
+    async def on_ready(self):
+        self.conf.set("is_ready", True)
+
+
+def setup(bot):
+    bot.add_cog(Example518(bot))
