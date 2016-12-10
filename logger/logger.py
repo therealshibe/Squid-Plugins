@@ -82,7 +82,7 @@ class Logger:
         if level_str.lower() in self.levels:
             return getattr(logging, level_str.upper())
 
-    async def _reset_saved_loggers(self):
+    def _reset_saved_loggers(self):
         all_loggers = self._get_loggers()
         for logname, info in self._saved_levels.items():
             level = info.get("override")
