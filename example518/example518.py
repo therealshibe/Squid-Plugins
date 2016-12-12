@@ -11,12 +11,12 @@ class Example518:
         self.bot = bot
         self.conf = bot.get_conf(self.__class__.__name__, 23894723987423987)
 
-        self.conf.registerGlobal("is_ready", False)
-        self.conf.registerServer("is_server_enabled", False)
-        self.conf.registerChannel("is_channel_enabled", False)
-        self.conf.registerRole("is_role_enabled", False)
-        self.conf.registerMember("is_member_enabled", False)
-        self.conf.registerUser("is_user_enabled", False)
+        self.conf.register_global("is_ready", False)
+        self.conf.register_server("is_server_enabled", False)
+        self.conf.register_channel("is_channel_enabled", False)
+        self.conf.register_role("is_role_enabled", False)
+        self.conf.register_member("is_member_enabled", False)
+        self.conf.register_user("is_user_enabled", False)
 
     @cmds.command()
     async def botready(self):
