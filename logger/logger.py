@@ -82,7 +82,7 @@ class Logger:
         if level_str.lower() in self.levels:
             return getattr(logging, level_str.upper())
 
-    def _reset_saved_loggers(self):
+    async def _reset_saved_loggers(self):
         all_loggers = self._get_loggers()
         for logname, info in self._saved_levels.items():
             level = info.get("override")
@@ -129,7 +129,7 @@ class Logger:
     @logger.command(name="reload")
     async def logger_reload(self):
         """Reloads saved levels, just in case"""
-        self._reset_saved_loggers()
+        await self._reset_saved_loggers()
         await self.bot.say("All levels reloaded.")
 
     @logger.command(pass_context=True, name="reset")
