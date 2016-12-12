@@ -1,6 +1,10 @@
 import discord
 from discord.ext import commands as cmds
 
+import logging
+
+log = logging.getLogger("red.example518")
+
 
 class Example518:
     def __init__(self, bot):
@@ -39,6 +43,7 @@ class Example518:
 
     @cmds.command(pass_context=True)
     async def roleenablecheck(self, ctx, role: discord.Role, set: bool=None):
+        log.debug("{}: {}".format(role.name, role.id))
         if set is not None:
             self.conf.role(role).set(
                 "is_role_enabled", set)
