@@ -38,7 +38,7 @@ class SelfBotStatus:
 
     def _get_game(self):
         try:
-            me = self.bot.servers[0].me
+            me = list(self.bot.servers)[0].me
             game = me.game
         except IndexError:
             game = None
