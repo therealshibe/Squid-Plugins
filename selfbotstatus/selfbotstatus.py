@@ -12,7 +12,7 @@ class SelfBotStatus:
 
         self._last_time = 0
 
-        kb.hook(self.kb_press)
+        kb.hook(lambda n, s, t: self.kb_press(n, s, t))
 
         self.status_task = None
 
