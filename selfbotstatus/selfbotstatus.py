@@ -24,7 +24,10 @@ class SelfBotStatus:
 
     def kb_press(self, name, scan_code, time):
         if self.is_online is True:
-            self.status_task.cancel()
+            try:
+                self.status_task.cancel()
+            except AttributeError:
+                pass
             self.status_task = self.bot.loop.create_task(
                 self._set_idle(time + 300))
         elif self.is_online is False:
