@@ -15,6 +15,7 @@ class SelfBotStatus:
         kb.hook(self.kb_press)
 
         self.status_task = None
+        self.start = False
 
     def __unload(self):
         try:
@@ -23,6 +24,9 @@ class SelfBotStatus:
             pass
 
     def kb_press(self, event):
+        if not self.start:
+            return
+
         etime = event.time
         if self.is_online is True:
             try:
@@ -60,6 +64,9 @@ class SelfBotStatus:
         await self.bot.change_presence(game=game, status=discord.Status.online,
                                        afk=False)
         self.is_online = True
+
+    async def on_ready(self):
+        self.start = True
 
 
 def setup(bot):
