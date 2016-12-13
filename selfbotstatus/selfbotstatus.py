@@ -12,7 +12,7 @@ class SelfBotStatus:
 
         self._last_time = 0
 
-        kb.hook(self.on_kb_press)
+        kb.hook(self.kb_press)
 
         self.status_task = None
 
@@ -22,7 +22,7 @@ class SelfBotStatus:
         except AttributeError:
             pass
 
-    def on_kb_press(self, name, scan_code, time):
+    def kb_press(self, name, scan_code, time):
         diff = time - self._last_time
         if self.is_online is True and diff > 30:
             self.status_task.cancel()
