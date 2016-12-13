@@ -23,8 +23,7 @@ class SelfBotStatus:
             pass
 
     def kb_press(self, name, scan_code, time):
-        diff = time - self._last_time
-        if self.is_online is True and diff > 30:
+        if self.is_online is True:
             self.status_task.cancel()
             self.status_task = self.bot.loop.create_task(
                 self._set_idle(time + 300))
@@ -48,6 +47,7 @@ class SelfBotStatus:
         game = self._get_game()
         await self.bot.change_presence(game=game, status=discord.Status.idle,
                                        afk=True)
+        self.is_online = False
 
     async def _set_online(self, ttl=0):
         while time.time() < ttl:
@@ -55,6 +55,7 @@ class SelfBotStatus:
         game = self._get_game()
         await self.bot.change_presence(game=game, status=discord.Status.online,
                                        afk=False)
+        self.is_online = True
 
 
 def setup(bot):
