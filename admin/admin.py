@@ -235,6 +235,8 @@ class Admin:
         roles = list(map(lambda r: self._role_from_string(server, r),
                          role_names))
 
+        roles = [r for r in roles if r is not None]
+
         role_to_add = self._role_from_string(server, rolename, roles=roles)
 
         try:
