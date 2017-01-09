@@ -262,6 +262,7 @@ class Scheduler:
                         next_event.name, diff))
                     fut = self.bot.loop.call_later(diff, self.run_coro,
                                                    next_event)
+                    fut.start_time = next_time
                     self.to_kill.append(fut)
                     if next_event.repeat:
                         await self._put_event(next_event, next_time,
@@ -277,7 +278,7 @@ class Scheduler:
 
             to_delete = []
             for old_command in self.to_kill:
-                if self.bot.loop.time() - 30 > old_command._when:
+                if time.time() > old_command.start_time + 30:
                     old_command.cancel()
                     to_delete.append(old_command)
             for item in to_delete:
