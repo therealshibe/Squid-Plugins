@@ -276,7 +276,7 @@ class Scheduler:
             self.queue_lock.release()
 
             to_delete = []
-            for start_time, old_command in self.to_kill:
+            for start_time, old_command in self.to_kill.items():
                 if time.time() > start_time + 30:
                     old_command.cancel()
                     to_delete.append(start_time)
