@@ -54,6 +54,7 @@ class SentryIO:
         Set up sentry.io client id
         """
         self.clientid = clientid
+        await self.bot.say("Saved.")
 
 
 def check_files():
