@@ -30,6 +30,8 @@ class SentryIO:
     def clientid(self, value):
         self.config["clientid"] = value
 
+        dataIO.save_json('data/sentryio/config.json', self.config)
+
         self.load_sentry()
 
     def load_sentry(self):
