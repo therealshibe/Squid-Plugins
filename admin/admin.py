@@ -18,6 +18,7 @@ class Admin:
     def __init__(self, bot):
         self.bot = bot
         self._announce_msg = None
+        self._announce_server = None
         self._settings = dataIO.load_json('data/admin/settings.json')
         self._settable_roles = self._settings.get("ROLES", {})
 
@@ -49,6 +50,8 @@ class Admin:
     def _role_from_string(self, server, rolename, roles=None):
         if roles is None:
             roles = server.roles
+
+        roles = [r for r in roles if r is not None]
         role = discord.utils.find(lambda r: r.name.lower() == rolename.lower(),
                                   roles)
         try:
@@ -135,6 +138,7 @@ class Admin:
                                " issue a new announcement.")
         else:
             self._announce_msg = msg
+            self._announce_server = ctx.message.server
 
     @commands.command(pass_context=True)
     @checks.is_owner()
@@ -230,8 +234,8 @@ class Admin:
                                " server.")
             return
 
-        roles = list(map(lambda r: self._role_from_string(server, r),
-                         role_names))
+        f = self._role_from_string
+        roles = [f(server, r) for r in role_names if r is not None]
 
         role_to_add = self._role_from_string(server, rolename, roles=roles)
 
@@ -263,8 +267,9 @@ class Admin:
                                " server.")
             return
 
-        roles = list(map(lambda r: self._role_from_string(server, r),
-                         role_names))
+        f = self._role_from_string
+        roles = [f(server, r) for r in role_names if r is not None]
+
         role_to_remove = self._role_from_string(server, rolename, roles=roles)
 
         try:
@@ -326,6 +331,8 @@ class Admin:
                 break
             server = self.bot.get_server(server_id)
             if server is None:
+                continue
+            if server == self._announce_server:
                 continue
             chan = server.default_channel
             log.debug("Looking to announce to {} on {}".format(chan.name,
