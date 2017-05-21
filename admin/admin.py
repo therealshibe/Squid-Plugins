@@ -288,6 +288,25 @@ class Admin:
                                                              server.id))
             await self.bot.say("Role removed.")
 
+    @selfrole.command(no_pm=True, pass_context=True, name="list")
+    async def selfrole_list(self, ctx):
+        """Views all current roles you can assign to yourself.
+
+        Configurable using `adminset`"""
+        server = ctx.message.server
+        if self._get_selfrole_names(ctx.message.server) is None:
+            await self.bot.say("There are no selfroles set.")
+        else:
+            selfroles = self._settable_roles[server.id]
+            if len(selfroles) == 2:
+                await self.bot.say("You can currently"
+                                   " give yourself\n{}."
+                                   "".format(" and ".join(selfroles)))
+            else:
+                await self.bot.say("You can currently"
+                                   "give yourself\n{}."
+                                   "".format(", ".join(selfroles)))
+
     @commands.command(pass_context=True)
     @checks.is_owner()
     async def sudo(self, ctx, user: discord.Member, *, command):
