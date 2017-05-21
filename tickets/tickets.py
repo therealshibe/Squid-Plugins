@@ -88,7 +88,7 @@ class Tickets:
     async def ticket(self, ctx, *, message):
         """Adds ticket.
 
-           Example: !ticket The quick brown fox? -> adds ticket"""
+           Example: [p]ticket The quick brown fox? -> adds ticket"""
         if self.ticket_limit != 0 and \
                 self._get_number_tickets(ctx.message.author) >= \
                 self.ticket_limit:
