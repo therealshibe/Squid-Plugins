@@ -32,7 +32,7 @@ def is_enabled(f: Callable) -> Callable:
 
         enabled = self._config.guild(guild).enabled()
         if enabled:
-            f(self, obj, *args, **kwargs)
+            return f(self, obj, *args, **kwargs)
     return pred
 
 
