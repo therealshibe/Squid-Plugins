@@ -4,5 +4,6 @@
     "DISABLED" : false,
     "SHORT" : "FOR SQUID BOT USE ONLY DO NOT INSTALL.",
     "NAME" : "BotInfo",
-    "INSTALL_MSG" : "If you installed this, you shouldn't have, please uninstall it now."
+    "INSTALL_MSG" : "If you installed this, you shouldn't have, please uninstall it now.",
+    "HIDDEN" : true
 }
