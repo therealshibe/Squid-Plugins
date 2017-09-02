@@ -201,3 +201,34 @@ class ReactRole:
             await member.add_roles(*roles)
         except discord.Forbidden:
             pass
+
+    async def on_raw_reaction_remove(self, emoji: discord.PartialReactionEmoji,
+                                     message_id: int, channel_id: int, user_id: int):
+        """
+        Event handler for long term reaction watching.
+
+        :param discord.PartialReactionEmoji emoji:
+        :param int message_id:
+        :param int channel_id:
+        :param int user_id:
+        :return:
+        """
+        has_reactrole, role_ids = await self.has_reactrole_combo(message_id, emoji.id)
+
+        if not has_reactrole:
+            return
+
+        try:
+            member = self._get_member(channel_id, user_id)
+        except LookupError:
+            return
+
+        try:
+            roles = [self._get_role(member.guild, role_id) for role_id in role_ids]
+        except LookupError:
+            return
+
+        try:
+            await member.remove_roles(*roles)
+        except discord.Forbidden:
+            pass
