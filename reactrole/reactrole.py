@@ -56,7 +56,7 @@ class ReactRole:
         """
         Adds a react|role combo.
 
-        :param str message_id:
+        :param int message_id:
         :param discord.Emoji emoji:
         :param discord.Role role:
         """
@@ -66,6 +66,23 @@ class ReactRole:
         role_list.append(role.id)
 
         details[str(emoji.id)] = role_list
+
+        await self.config.details.get_attr(str(message_id), resolve=False).set(details)
+
+    async def remove_react(self, message_id: int, emoji: discord.Emoji):
+        """
+        Removes a given reaction.
+
+        :param int message_id:
+        :param discord.Emoji emoji:
+        :return:
+        """
+        details = await self.config.details.get_attr(str(message_id), default={})
+
+        try:
+            del details[str(emoji.id)]
+        except KeyError:
+            pass
 
         await self.config.details.get_attr(str(message_id), resolve=False).set(details)
 
@@ -170,6 +187,17 @@ class ReactRole:
         await self.add_reactrole(message_id, reaction, role)
 
         await ctx.send("React|Role combo added.")
+
+    @reactrole.command()
+    async def removereact(self, ctx: commands.Context, message_id: RegisteredMessage,
+                          reaction: discord.Emoji):
+        """
+        Removes all roles associated with a given reaction.
+        """
+        # noinspection PyTypeChecker
+        await self.remove_react(message_id, reaction)
+
+        await ctx.send("Reaction removed.")
 
     async def on_raw_reaction_add(self, emoji: discord.PartialReactionEmoji,
                                   message_id: int, channel_id: int, user_id: int):
