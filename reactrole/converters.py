@@ -13,7 +13,7 @@ class RegisteredMessage(Converter):
         except ValueError as e:
             raise commands.CommandError("Provided argument was not an integer.") from e
 
-        if not reactrole.is_registered(message_id):
+        if not (await reactrole.is_registered(message_id)):
             raise commands.CommandError("Provided integer is not a registered message ID.")
 
         return message_id

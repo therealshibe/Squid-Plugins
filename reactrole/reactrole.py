@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 import discord
 from discord.ext import commands
@@ -17,8 +17,7 @@ class ReactRole:
 
     def __init__(self, red: Red):
         self.bot = red
-        self.config = Config.get_conf(self, 3203948230954902384,
-                                      force_registration=True)
+        self.config = Config.get_conf(self, 3203948230954902384)
         self.config.register_global(
             message_ids=[],
             details={}  # This is going to be a dict of message ID -> {emoji: [role_id]}
@@ -61,14 +60,17 @@ class ReactRole:
         :param discord.Emoji emoji:
         :param discord.Role role:
         """
-        details = await self.config.details.get_attr(message_id, resolve=False, default={})
+        details = await self.config.details.get_attr(str(message_id), default={})
 
-        role_list = await details.get_attr(emoji.id, default=[])
+        role_list = details.get(str(emoji.id), [])
         role_list.append(role.id)
 
-        await details.get_attr(emoji.id, resolve=False).set(set(role_list))
+        details[str(emoji.id)] = role_list
 
-    async def has_reactrole_combo(self, message_id: int, emoji_id: int) -> bool:
+        await self.config.details.get_attr(str(message_id), resolve=False).set(details)
+
+    async def has_reactrole_combo(self, message_id: int, emoji_id: int)\
+            -> (bool, Union[List[int], None]):
         """
         Determines if there is an existing react|role combo for a given message
         and emoji ID.
@@ -77,11 +79,13 @@ class ReactRole:
         :param int emoji_id:
         :return:
         """
-        if not self.is_registered(message_id):
+        if not await self.is_registered(message_id):
             return False
 
-        details = await self.config.details.get_attr(message_id, default={})
-        return emoji_id in details
+        details = await self.config.details.get_attr(str(message_id), default={})
+        if str(emoji_id) not in details:
+            return False, None
+        return True, details[str(emoji_id)]
 
     def _get_member(self, channel_id: int, user_id: int) -> discord.Member:
         """
@@ -130,7 +134,7 @@ class ReactRole:
         Base command for this cog. Check help for the commands list.
         """
         if ctx.invoked_subcommand is None:
-            await ctx.bot.send_help(ctx)
+            await ctx.bot.send_cmd_help(ctx)
 
     @reactrole.command()
     async def addmessage(self, ctx: commands.Context, message_id: int):
@@ -178,7 +182,7 @@ class ReactRole:
         :param int user_id:
         :return:
         """
-        has_reactrole, role_id = self.has_reactrole_combo(message_id, emoji.id)
+        has_reactrole, role_ids = await self.has_reactrole_combo(message_id, emoji.id)
 
         if not has_reactrole:
             return
@@ -189,11 +193,11 @@ class ReactRole:
             return
 
         try:
-            role = self._get_role(member.guild, role_id)
+            roles = [self._get_role(member.guild, role_id) for role_id in role_ids]
         except LookupError:
             return
 
         try:
-            await member.add_roles(role)
+            await member.add_roles(*roles)
         except discord.Forbidden:
             pass
