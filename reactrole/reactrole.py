@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from core import Config
 from core.bot import Red
+from core import checks
 
 
 class ReactRoleCombo:
@@ -228,6 +229,7 @@ class ReactRole:
         return ret, reaction.emoji
 
     @commands.group()
+    @checks.guildowner_or_permissions(manage_roles=True)
     async def reactrole(self, ctx: commands.Context):
         """
         Base command for this cog. Check help for the commands list.
