@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Union
 
 import discord
@@ -6,7 +7,38 @@ from discord.ext import commands
 from core import Config
 from core.bot import Red
 
-from .converters import RegisteredMessage
+
+class ReactRoleCombo:
+    def __init__(self, message_id, role_id, emoji=None, is_custom_emoji=False):
+        self.message_id = message_id
+        self.role_id = role_id
+        self.emoji = emoji
+
+        self.is_custom_emoji = is_custom_emoji
+
+    def __eq__(self, other: "ReactRoleCombo"):
+        return (
+            self.message_id == other.message_id and
+            self.role_id == other.role_id and
+            self.emoji == other.emoji
+        )
+
+    def to_json(self):
+        return {
+            'message_id': self.message_id,
+            'role_id': self.role_id,
+            'emoji': self.emoji,
+            'is_custom_emoji': self.is_custom_emoji
+        }
+
+    @classmethod
+    def from_json(cls, data):
+        return cls(
+            data['message_id'],
+            data['role_id'],
+            data['emoji'],
+            data['is_custom_emoji']
+        )
 
 
 class ReactRole:
@@ -17,31 +49,31 @@ class ReactRole:
 
     def __init__(self, red: Red):
         self.bot = red
-        self.config = Config.get_conf(self, 3203948230954902384)
+        self.config = Config.get_conf(self, 3203948230954902384,
+                                      force_registration=True)
         self.config.register_global(
-            message_ids=[],
-            details={}  # This is going to be a dict of message ID -> {emoji: [role_id]}
+            registered_combos=[]
         )
 
-    async def message_list(self) -> List[int]:
+    async def combo_list(self) -> List[ReactRoleCombo]:
         """
-        Helper method to get the list of watched message IDs.
+        Returns a list of reactrole combos.
 
         :return:
-            A list of integer message IDs.
-        :rtype:
-            List[int]
         """
-        return await self.config.message_ids()
+        cmd = self.config.registered_combos()
 
-    async def set_message_list(self, id_list: List[int]):
+        return [ReactRoleCombo.from_json(data) for data in await cmd]
+
+    async def set_combo_list(self, combo_list: List[ReactRoleCombo]):
         """
-        Helper method to set the list of watched message IDs.
+        Helper method to set the list of reactrole combos.
 
-        :param id_list:
+        :param combo_list:
         :return:
         """
-        await self.config.message_ids.set(id_list)
+        raw = [combo.to_json() for combo in combo_list]
+        await self.config.registered_combos.set(raw)
 
     async def is_registered(self, message_id: int) -> bool:
         """
@@ -50,59 +82,64 @@ class ReactRole:
         :param message_id:
         :return:
         """
-        return message_id in await self.message_list()
+        return any(message_id == combo.message_id
+                   for combo in await self.combo_list())
 
-    async def add_reactrole(self, message_id: int, emoji: discord.Emoji, role: discord.Role):
+    async def add_reactrole(self, message_id: int, emoji: Union[str, int], role: discord.Role):
         """
         Adds a react|role combo.
 
         :param int message_id:
-        :param discord.Emoji emoji:
+        :param str or int emoji:
         :param discord.Role role:
         """
-        details = await self.config.details.get_attr(str(message_id), default={})
+        is_custom = True
+        if isinstance(emoji, str):
+            is_custom = False
 
-        role_list = details.get(str(emoji.id), [])
-        role_list.append(role.id)
+        combo = ReactRoleCombo(message_id, role.id, emoji=emoji, is_custom_emoji=is_custom)
 
-        details[str(emoji.id)] = role_list
+        current_combos = await self.combo_list()
 
-        await self.config.details.get_attr(str(message_id), resolve=False).set(details)
+        if combo not in current_combos:
+            current_combos.append(combo)
+            await self.set_combo_list(current_combos)
 
-    async def remove_react(self, message_id: int, emoji: discord.Emoji):
+    async def remove_react(self, message_id: int, emoji: Union[int, str]):
         """
         Removes a given reaction.
 
         :param int message_id:
-        :param discord.Emoji emoji:
+        :param str or int emoji:
         :return:
         """
-        details = await self.config.details.get_attr(str(message_id), default={})
+        current_combos = await self.combo_list()
 
-        try:
-            del details[str(emoji.id)]
-        except KeyError:
-            pass
+        to_keep = [c for c in current_combos
+                   if not (c.message_id == message_id and c.emoji == emoji)]
 
-        await self.config.details.get_attr(str(message_id), resolve=False).set(details)
+        if to_keep != current_combos:
+            await self.set_combo_list(to_keep)
 
-    async def has_reactrole_combo(self, message_id: int, emoji_id: int)\
-            -> (bool, Union[List[int], None]):
+    async def has_reactrole_combo(self, message_id: int, emoji: Union[str, int])\
+            -> (bool, List[ReactRoleCombo]):
         """
         Determines if there is an existing react|role combo for a given message
         and emoji ID.
 
         :param int message_id:
-        :param int emoji_id:
+        :param str or int emoji:
         :return:
         """
         if not await self.is_registered(message_id):
-            return False
+            return False, []
 
-        details = await self.config.details.get_attr(str(message_id), default={})
-        if str(emoji_id) not in details:
-            return False, None
-        return True, details[str(emoji_id)]
+        combos = await self.combo_list()
+
+        ret = [c for c in combos
+               if c.message_id == message_id and c.emoji == emoji]
+
+        return len(ret) > 0, ret
 
     def _get_member(self, channel_id: int, user_id: int) -> discord.Member:
         """
@@ -145,6 +182,32 @@ class ReactRole:
 
         return role
 
+    async def _wait_for_emoji(self, ctx: commands.Context):
+        """
+        Asks the user to react to this message and returns the emoji string if unicode
+        or ID if custom.
+
+        :param ctx:
+        :raises asyncio.TimeoutError:
+            If the user does not respond in time.
+        :return:
+        """
+        message = await ctx.send("Please react to this message with the reaction you"
+                                 " would like to add, you have 10 seconds to respond.")
+
+        def _wait_check(msg):
+            return msg.author == ctx.author
+
+        reaction, _ = ctx.bot.wait_for('reaction_add', check=_wait_check, timeout=10)
+
+        try:
+            ret = reaction.emoji.id
+        except AttributeError:
+            # The emoji is unicode
+            ret = reaction.emoji
+
+        return ret
+
     @commands.group()
     async def reactrole(self, ctx: commands.Context):
         """
@@ -154,48 +217,35 @@ class ReactRole:
             await ctx.bot.send_cmd_help(ctx)
 
     @reactrole.command()
-    async def addmessage(self, ctx: commands.Context, message_id: int):
+    async def addreactrole(self, ctx: commands.Context, message_id: int, *, role: discord.Role):
         """
-        Registers a message to watch reactions for.
+        Adds a reaction|role combination to a registered message, don't use
+        quotes for the role name.
         """
-        curr_ids = await self.message_list()
-        if message_id not in curr_ids:
-            curr_ids.append(message_id)
-            await self.set_message_list(curr_ids)
+        try:
+            emoji = await self._wait_for_emoji(ctx)
+        except asyncio.TimeoutError:
+            await ctx.send("You didn't respond in time, please redo this command.")
+            return
 
-        await ctx.send("Message ID registered.")
-
-    @reactrole.command()
-    async def removemessage(self, ctx: commands.Context, message_id: int):
-        """
-        Unregisters a watched message.
-        """
-        curr_ids = await self.message_list()
-        if message_id in curr_ids:
-            curr_ids.remove(message_id)
-            await self.set_message_list(curr_ids)
-
-        await ctx.send("Message ID unregistered.")
-
-    @reactrole.command()
-    async def addreactrole(self, ctx: commands.Context, message_id: RegisteredMessage,
-                           reaction: discord.Emoji, role: discord.Role):
-        """
-        Adds a reaction|role combination to a registered message.
-        """
         # noinspection PyTypeChecker
-        await self.add_reactrole(message_id, reaction, role)
+        await self.add_reactrole(message_id, emoji, role)
 
         await ctx.send("React|Role combo added.")
 
     @reactrole.command()
-    async def removereact(self, ctx: commands.Context, message_id: RegisteredMessage,
-                          reaction: discord.Emoji):
+    async def removereact(self, ctx: commands.Context, message_id: int):
         """
         Removes all roles associated with a given reaction.
         """
+        try:
+            emoji = await self._wait_for_emoji(ctx)
+        except asyncio.TimeoutError:
+            await ctx.send("You didn't respond in time, please redo this command.")
+            return
+
         # noinspection PyTypeChecker
-        await self.remove_react(message_id, reaction)
+        await self.remove_react(message_id, emoji)
 
         await ctx.send("Reaction removed.")
 
@@ -210,7 +260,12 @@ class ReactRole:
         :param int user_id:
         :return:
         """
-        has_reactrole, role_ids = await self.has_reactrole_combo(message_id, emoji.id)
+        if emoji.is_custom_emoji():
+            emoji_id = emoji.id
+        else:
+            emoji_id = emoji.name
+
+        has_reactrole, combos = await self.has_reactrole_combo(message_id, emoji_id)
 
         if not has_reactrole:
             return
@@ -221,7 +276,7 @@ class ReactRole:
             return
 
         try:
-            roles = [self._get_role(member.guild, role_id) for role_id in role_ids]
+            roles = [self._get_role(member.guild, c.role_id) for c in combos]
         except LookupError:
             return
 
@@ -241,7 +296,12 @@ class ReactRole:
         :param int user_id:
         :return:
         """
-        has_reactrole, role_ids = await self.has_reactrole_combo(message_id, emoji.id)
+        if emoji.is_custom_emoji():
+            emoji_id = emoji.id
+        else:
+            emoji_id = emoji.name
+
+        has_reactrole, combos = await self.has_reactrole_combo(message_id, emoji_id)
 
         if not has_reactrole:
             return
@@ -252,7 +312,7 @@ class ReactRole:
             return
 
         try:
-            roles = [self._get_role(member.guild, role_id) for role_id in role_ids]
+            roles = [self._get_role(member.guild, c.role_id) for c in combos]
         except LookupError:
             return
 
