@@ -182,6 +182,23 @@ class ReactRole:
 
         return role
 
+    async def _get_message(self, ctx: commands.Context, message_id: int)\
+            -> Union[discord.Message, None]:
+        """
+        Tries to find a message by ID in the current guild context.
+
+        :param ctx:
+        :param message_id:
+        :return:
+        """
+        for channel in ctx.guild.channels:
+            try:
+                return await channel.get_message(message_id)
+            except discord.NotFound:
+                pass
+
+        return None
+
     async def _wait_for_emoji(self, ctx: commands.Context):
         """
         Asks the user to react to this message and returns the emoji string if unicode
@@ -193,12 +210,14 @@ class ReactRole:
         :return:
         """
         message = await ctx.send("Please react to this message with the reaction you"
-                                 " would like to add, you have 10 seconds to respond.")
+                                 " would like to add/remove, you have 20 seconds to"
+                                 " respond.")
 
-        def _wait_check(msg):
-            return msg.author == ctx.author
+        def _wait_check(react, user):
+            msg = react.message
+            return msg.id == message.id and user.id == ctx.author.id
 
-        reaction, _ = ctx.bot.wait_for('reaction_add', check=_wait_check, timeout=10)
+        reaction, _ = await ctx.bot.wait_for('reaction_add', check=_wait_check, timeout=20)
 
         try:
             ret = reaction.emoji.id
@@ -206,7 +225,7 @@ class ReactRole:
             # The emoji is unicode
             ret = reaction.emoji
 
-        return ret
+        return ret, reaction.emoji
 
     @commands.group()
     async def reactrole(self, ctx: commands.Context):
@@ -217,15 +236,27 @@ class ReactRole:
             await ctx.bot.send_cmd_help(ctx)
 
     @reactrole.command()
-    async def addreactrole(self, ctx: commands.Context, message_id: int, *, role: discord.Role):
+    async def add(self, ctx: commands.Context, message_id: int, *, role: discord.Role):
         """
         Adds a reaction|role combination to a registered message, don't use
         quotes for the role name.
         """
+        message = await self._get_message(ctx, message_id)
+        if message is None:
+            await ctx.send("That message doesn't seem to exist.")
+            return
+
         try:
-            emoji = await self._wait_for_emoji(ctx)
+            emoji, actual_emoji = await self._wait_for_emoji(ctx)
         except asyncio.TimeoutError:
             await ctx.send("You didn't respond in time, please redo this command.")
+            return
+
+        try:
+            await message.add_reaction(actual_emoji)
+        except discord.HTTPException:
+            await ctx.send("I can't add that emoji because I'm not in the guild that"
+                           " owns it.")
             return
 
         # noinspection PyTypeChecker
@@ -234,12 +265,12 @@ class ReactRole:
         await ctx.send("React|Role combo added.")
 
     @reactrole.command()
-    async def removereact(self, ctx: commands.Context, message_id: int):
+    async def remove(self, ctx: commands.Context, message_id: int):
         """
         Removes all roles associated with a given reaction.
         """
         try:
-            emoji = await self._wait_for_emoji(ctx)
+            emoji, actual_emoji = await self._wait_for_emoji(ctx)
         except asyncio.TimeoutError:
             await ctx.send("You didn't respond in time, please redo this command.")
             return
@@ -273,6 +304,9 @@ class ReactRole:
         try:
             member = self._get_member(channel_id, user_id)
         except LookupError:
+            return
+
+        if member.bot:
             return
 
         try:
@@ -309,6 +343,9 @@ class ReactRole:
         try:
             member = self._get_member(channel_id, user_id)
         except LookupError:
+            return
+
+        if member.bot:
             return
 
         try:
