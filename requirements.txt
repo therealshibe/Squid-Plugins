@@ -2,3 +2,4 @@ tabulate
 keyboard
 feedparser
 pyfiglet
+aiohttp-json-rpc
