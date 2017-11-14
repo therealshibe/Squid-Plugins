@@ -4,8 +4,8 @@ from typing import List, Union
 import discord
 from discord.ext import commands
 
-from core import Config
-from core.bot import Red
+from redbot.core import Config
+from redbot.core.bot import Red
 
 
 class ReactRoleCombo:
@@ -196,6 +196,8 @@ class ReactRole:
                 return await channel.get_message(message_id)
             except discord.NotFound:
                 pass
+            except AttributeError: # VoiceChannel object has no attribute 'get_message'
+                pass
 
         return None
 
@@ -233,7 +235,7 @@ class ReactRole:
         Base command for this cog. Check help for the commands list.
         """
         if ctx.invoked_subcommand is None:
-            await ctx.bot.send_cmd_help(ctx)
+            await ctx.send_help()
 
     @reactrole.command()
     async def add(self, ctx: commands.Context, message_id: int, *, role: discord.Role):
