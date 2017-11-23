@@ -3,4 +3,4 @@ keyboard
 feedparser
 pyfiglet
 aiohttp-json-rpc
-jsonrpcclient[aiohttp]
+git+git://github.com/tekulvw/jsonrpcclient.git@patch-1#egg=jsonrpcclient[aiohttp]

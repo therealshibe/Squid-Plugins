@@ -5,6 +5,7 @@ from discord.ext import commands
 
 from redbot.core import Config
 from redbot.core import i18n
+from redbot.core import checks
 
 from . import wallet_node
 
@@ -30,7 +31,10 @@ class Tippr:
     async def attempt_init(self, loop: asyncio.BaseEventLoop):
         rpc_info = await self.config.rpc()
 
-        await wallet_node.initialize(loop, **rpc_info)
+        try:
+            await wallet_node.initialize(loop, **rpc_info)
+        except RuntimeError:
+            pass
 
     async def _get_addr(self, user: discord.User):
         """
@@ -49,7 +53,7 @@ class Tippr:
         addr = await self.config.user(user).deposit_address()
 
         if addr is None:
-            addr = await wallet_node.get_new_address()
+            addr = await wallet_node.get_new_address(str(user.id))
             await self.config.user(user).deposit_address.set(addr)
 
         return addr
@@ -128,13 +132,14 @@ class Tippr:
         DMs the author's current balance.
         """
         msg = _("You have {:.8} in bitcoin cash!")
-        satoshis = self._get_btc_amount(ctx.author)
+        satoshis = await self._get_btc_amount(ctx.author)
 
         await ctx.author.send(msg.format(
             wallet_node.amount_to_json(satoshis)
         ))
 
     @tip.command()
+    @checks.is_owner()
     async def setup(self, ctx):
         """
         Initial set up of the BCH wallet to use.
@@ -149,9 +154,10 @@ class Tippr:
                 _("Please tell me the {}:").format(noun)
             )
             try:
-                msg = await ctx.wait_for("message", check=check)
+                msg = await ctx.bot.wait_for("message", check=check)
             except asyncio.TimeoutError:
                 break
             data[noun] = msg.content
         else:
             await self.config.rpc.set(data)
+            await self.attempt_init(ctx.bot.loop)

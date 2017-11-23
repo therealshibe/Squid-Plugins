@@ -1,12 +1,15 @@
 import aiohttp
 import asyncio
 from jsonrpcclient.aiohttp_client import aiohttpClient
+from jsonrpcclient import config
 
 __all__ = ['initialize', 'get_new_address', 'get_received_by_account',
            'json_to_amount', 'amount_to_json']
 
 _session = None  # type: aiohttp.ClientSession
 _node_client = None  # type: aiohttpClient
+
+config.validate = False
 
 
 async def initialize(loop: asyncio.BaseEventLoop, *,
@@ -33,6 +36,9 @@ async def initialize(loop: asyncio.BaseEventLoop, *,
     RuntimeError
         If any of host, port, user, password are not supplied.
 
+    LookupError
+        If the host could not be found.
+
     Returns
     -------
     dict
@@ -52,7 +58,10 @@ async def initialize(loop: asyncio.BaseEventLoop, *,
 
     _node_client = aiohttpClient(_session, addr)
 
-    return await _node_client.request("getinfo")
+    try:
+        return await _node_client.request("getinfo")
+    except aiohttp.client_exceptions.ClientConnectorError as e:
+        raise LookupError from e
 
 
 def _ensure_initialized(func):
