@@ -3,3 +3,4 @@ keyboard
 feedparser
 pyfiglet
 aiohttp-json-rpc
+jsonrpcclient[aiohttp]
