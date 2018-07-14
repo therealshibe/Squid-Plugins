@@ -62,3 +62,7 @@ target/
 .ipynb_checkpoints
 
 *.sublime*
+.idea/workspace.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/Squid-Plugins.iml
